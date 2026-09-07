@@ -5,8 +5,10 @@ import tseslint from 'typescript-eslint';
 
 export default defineConfig(
   js.configs.recommended,
-  tseslint.configs.recommendedTypeChecked,
   {
+    // Type-aware rules need the TypeScript program, so they apply only to the files tsconfig.json includes.
+    files: ['**/*.ts'],
+    extends: [tseslint.configs.recommendedTypeChecked],
     languageOptions: {
       parserOptions: { projectService: true, tsconfigRootDir: import.meta.dirname },
     },

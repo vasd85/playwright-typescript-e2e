@@ -2,7 +2,6 @@ import type { Locator } from '@playwright/test';
 import { BasePage } from './base.page';
 
 export class SettingsPage extends BasePage {
-  // The form is prefilled from GET /user, so these two fields show who the browser is signed in as.
   readonly usernameInput: Locator = this.page.getByRole('textbox', { name: 'Username' });
   readonly emailInput: Locator = this.page.getByRole('textbox', { name: 'Email' });
   readonly logoutButton: Locator = this.page.getByRole('button', {

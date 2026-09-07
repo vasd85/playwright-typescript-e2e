@@ -16,7 +16,7 @@ export default defineConfig({
   reporter: [
     ['list'],
     ['html', { open: 'never' }],
-    // Written at the end of the run, so it survives the cleanup of outputDir; read by the failure-demo gate in CI.
+    // Written at the end of the run, so it survives the cleanup of outputDir: a machine-readable outcome for CI gates.
     ['json', { outputFile: 'test-results/report.json' }],
   ],
   use: {
@@ -34,6 +34,7 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
       dependencies: ['setup'],
     },
+    // API tests hit the same stand as the UI, so they wait for the readiness check too; the offline schema checks ride along.
     { name: 'api', testDir: 'tests/api', dependencies: ['setup'] },
   ],
 });

@@ -3,8 +3,9 @@ import path from 'node:path';
 import { z } from 'zod';
 
 // .env is optional: a missing file is the normal state in CI and in a fresh clone.
+// Resolved from the project root rather than the working directory, so any cwd finds it.
 // Variables already present in the environment win over the file.
-const ENV_FILE = path.resolve(process.cwd(), '.env');
+const ENV_FILE = path.resolve(__dirname, '..', '..', '.env');
 if (existsSync(ENV_FILE)) {
   process.loadEnvFile(ENV_FILE);
 }

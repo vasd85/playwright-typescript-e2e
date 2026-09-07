@@ -40,6 +40,9 @@ test(
 
     await test.step('Log out through Settings and check that the user is signed out', async () => {
       await header.settingsLink.click();
+      // The settings form is filled from GET /user: the account behind the token is really this one.
+      await expect(settingsPage.usernameInput).toHaveValue(user.username);
+      await expect(settingsPage.emailInput).toHaveValue(user.email);
       await settingsPage.logout();
       await header.expectSignedOut();
     });
@@ -49,6 +52,8 @@ test(
       await loginPage.login(user);
       await expect(page).toHaveURL('/');
       await header.expectSignedInAs(user.username);
+      await settingsPage.goto();
+      await expect(settingsPage.usernameInput).toHaveValue(user.username);
     });
   },
 );

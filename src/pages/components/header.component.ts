@@ -30,7 +30,11 @@ export class HeaderComponent {
     await expect(this.newArticleLink).toBeVisible();
   }
 
-  /** Signed out: the guest links are back and the user menu is gone. */
+  /**
+   * Signed out: the guest links are back and the user menu is gone. The guest links go first:
+   * they appear only once the application has settled, whereas "hidden" would be true of any
+   * element before the header is rendered at all.
+   */
   async expectSignedOut(): Promise<void> {
     await expect(this.signInLink).toBeVisible();
     await expect(this.signUpLink).toBeVisible();

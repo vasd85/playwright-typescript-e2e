@@ -41,7 +41,7 @@ test.describe('Worker session', { tag: '@arch-1' }, () => {
     });
   });
 
-  test('New Article opens the editor', async ({ homePage, header, page }) => {
+  test('New Article opens the editor', async ({ homePage, header, page, workerAuth }) => {
     await test.step('Open the home page', async () => {
       await homePage.goto();
     });
@@ -49,6 +49,7 @@ test.describe('Worker session', { tag: '@arch-1' }, () => {
     await test.step('Click New Article and check the editor route', async () => {
       await header.newArticleLink.click();
       await expect(page).toHaveURL('/editor');
+      await header.expectSignedInAs(workerAuth.username);
     });
   });
 });

@@ -9,6 +9,7 @@
   "scripts": {
     "test": "playwright test",
     "test:ui": "playwright test --ui",
+    "test:unit": "playwright test --project=unit",
     "test:failure-demo": "cross-env CONTRACT_FAILURE_DEMO=1 playwright test --grep @failure-demo --retries 0",
     "lint": "eslint src tests playwright.config.ts eslint.config.mjs && prettier --check src tests playwright.config.ts eslint.config.mjs package.json tsconfig.json",
     "typecheck": "tsc --noEmit",

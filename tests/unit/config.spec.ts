@@ -27,8 +27,10 @@ test.describe('environment schema', () => {
   test('CONTRACT_FAILURE_DEMO=1 enables the failure demo mode', () => {
     expect(parseEnv({ CONTRACT_FAILURE_DEMO: '1' }).CONTRACT_FAILURE_DEMO).toBe(true);
   });
+});
 
-  test('API URL keeps the /api prefix for a path with a leading slash', () => {
+test.describe('API URL builder', () => {
+  test('keeps the /api prefix for a path with a leading slash', () => {
     const expected = 'https://api.realworld.show/api/users';
     expect(apiUrl('/users', parseEnv({ API_URL: 'https://api.realworld.show/api' }))).toBe(
       expected,

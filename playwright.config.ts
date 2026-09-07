@@ -34,7 +34,8 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
       dependencies: ['setup'],
     },
-    // API tests hit the same stand as the UI, so they wait for the readiness check too; the offline schema checks ride along.
-    { name: 'api', testDir: 'tests/api', dependencies: ['setup'] },
+    // Checks of the framework itself: no browser and no stand, so they run even when the stand is down.
+    // Deterministic by construction, hence no retries even in CI.
+    { name: 'unit', testDir: 'tests/unit', retries: 0 },
   ],
 });

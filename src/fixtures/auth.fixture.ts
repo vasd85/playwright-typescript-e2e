@@ -1,12 +1,14 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import path from 'node:path';
-import { setTimeout as sleep } from 'node:timers/promises';
-import { test as base, type APIRequestContext, type PlaywrightTestOptions } from '@playwright/test';
-import { SessionFileSchema, UserResponseSchema, type SessionFile } from '../api/schemas/user';
-import { getCurrentUser, registerUser } from '../api/users.api';
-import { env } from '../config/env';
-import { uniqueId } from '../data/unique';
-import { buildUser } from '../data/user.builder';
+import { test as base } from '@playwright/test';
+import type { SessionFile } from '../api/schemas/user';
+import {
+  readSession,
+  registerVerified,
+  sessionPath,
+  stateFromToken,
+  whoAmI,
+  writeSession,
+  type StorageState,
+} from '../auth/worker-session';
 
 export type WorkerSession = SessionFile & {
   slot: number;
@@ -16,29 +18,25 @@ export type WorkerSession = SessionFile & {
 
 type WorkerFixtures = { workerAuth: WorkerSession };
 
-type StorageState = NonNullable<PlaywrightTestOptions['storageState']>;
-
 /** Storage state of a signed-out browser: a spec that drives the login forms opts in with `test.use`. */
 export const NO_AUTH: StorageState = { cookies: [], origins: [] };
 
-const ATTEMPTS = 3;
-// How long after the registration second ends the identity is checked: covers a small clock skew.
-const SECOND_BOUNDARY_MARGIN_MS = 300;
-
 /**
- * One disposable user per worker, registered through the API at most once per worker process.
- * The session is kept in `<outputDir>/.auth/worker-<slot>.json`: the runner clears `outputDir`
- * at the start of a run, so the file lives exactly as long as the run, and a worker restarted
- * after a failure (same slot, new process) finds it, confirms with one `GET /user` that the
- * token still belongs to its user, and reuses it without registering again.
+ * One disposable user per worker slot. The setup project registers the users before the
+ * browser tests start, one per second, and keeps each session in
+ * `<outputDir>/.auth/worker-<slot>.json`; the runner clears `outputDir` at the start of a run,
+ * so a session lives exactly as long as the run. This fixture confirms with one `GET /user`
+ * that the token still belongs to the slot's user and reuses it — also after a worker restart
+ * (same slot, new process). It registers on its own only when the file is missing (a run
+ * without the setup project) or the session is gone.
  */
 export const test = base.extend<Record<never, never>, WorkerFixtures>({
   workerAuth: [
     async ({ playwright }, use, workerInfo) => {
       const slot = workerInfo.parallelIndex;
       const workerIndex = workerInfo.workerIndex;
-      const statePath = path.join(workerInfo.project.outputDir, '.auth', `worker-${slot}.json`);
-      // A clean context: no Authorization header ever reaches the registration request.
+      const statePath = sessionPath(workerInfo.project.outputDir, slot);
+      // A clean context: no Authorization header ever reaches a registration request.
       const api = await playwright.request.newContext();
       try {
         const cached = readSession(statePath);
@@ -47,7 +45,13 @@ export const test = base.extend<Record<never, never>, WorkerFixtures>({
           await use({ ...cached, slot, workerIndex, outcome: 'reused' });
           return;
         }
-        const session = await registerVerified(api, slot, workerInfo.config.workers, workerIndex);
+        // Other workers may be registering at the same moment: each slot takes a second of its own.
+        const session = await registerVerified(
+          api,
+          slot,
+          `slot=${slot} worker=${workerIndex}`,
+          workerInfo.config.workers,
+        );
         writeSession(statePath, session);
         await use({
           ...session,
@@ -72,93 +76,3 @@ export const test = base.extend<Record<never, never>, WorkerFixtures>({
     await use(stateFromToken(workerAuth.token));
   },
 });
-
-function stateFromToken(token: string): StorageState {
-  return {
-    cookies: [],
-    origins: [
-      { origin: new URL(env.BASE_URL).origin, localStorage: [{ name: 'jwtToken', value: token }] },
-    ],
-  };
-}
-
-function readSession(statePath: string): SessionFile | undefined {
-  if (!existsSync(statePath)) return undefined;
-  return SessionFileSchema.parse(JSON.parse(readFileSync(statePath, 'utf8')));
-}
-
-function writeSession(statePath: string, { username, email, token }: SessionFile): void {
-  mkdirSync(path.dirname(statePath), { recursive: true });
-  writeFileSync(statePath, JSON.stringify({ username, email, token }));
-}
-
-/** Waits until the second in which the stand answered is over, plus a margin for clock skew. */
-async function waitForNextSecond(respondedAt: number): Promise<void> {
-  const boundary = (Math.floor(respondedAt / 1000) + 1) * 1000 + SECOND_BOUNDARY_MARGIN_MS;
-  await sleep(Math.max(0, boundary - Date.now()));
-}
-
-/** The username the stand resolves the token to, or nothing when the token is dead. */
-async function whoAmI(api: APIRequestContext, token: string): Promise<string | undefined> {
-  const response = await getCurrentUser(api, token);
-  if (response.status() !== 200) return undefined;
-  return UserResponseSchema.parse(await response.json()).user.username;
-}
-
-/**
- * Waits for the next second whose epoch value is congruent to the slot modulo the number of
- * workers. The stand derives a token from the user id and the integer second, so registrations
- * that land in the same second share a token: every slot registers in a second of its own.
- */
-async function staggerToSlotSecond(slot: number, workers: number): Promise<void> {
-  const period = workers * 1000;
-  const wait = (slot * 1000 - (Date.now() % period) + period) % period;
-  await sleep(wait);
-}
-
-/**
- * Registers a fresh user and verifies with `GET /user` that the token really resolves to it.
- * A 201 is not proof: the stand derives the token from the user id and the integer second,
- * and every anonymous registration on this shared stand gets the same user id, so any other
- * registration in the same second yields the same token and rebinds it to its own session,
- * whoever registered last. The stagger keeps our own workers apart; other users of the stand
- * cannot be kept apart, so the identity is checked only after that second has passed, when
- * the binding can no longer change. A mismatch means a collision: a new user is registered
- * in a new second.
- */
-async function registerVerified(
-  api: APIRequestContext,
-  slot: number,
-  workers: number,
-  workerIndex: number,
-): Promise<SessionFile> {
-  let lastUsername = '';
-  let lastWho: string | undefined;
-  for (let attempt = 1; attempt <= ATTEMPTS; attempt += 1) {
-    await staggerToSlotSecond(slot, workers);
-    const second = Math.floor(Date.now() / 1000) % workers;
-    const user = buildUser(uniqueId(slot));
-    const response = await registerUser(api, user);
-    if (response.status() !== 201) {
-      throw new Error(`POST /users responded ${response.status()}: ${await response.text()}`);
-    }
-    const respondedAt = Date.now();
-    const { token } = UserResponseSchema.parse(await response.json()).user;
-    await waitForNextSecond(respondedAt);
-    const who = await whoAmI(api, token);
-    if (who === user.username) {
-      console.log(
-        `[auth] slot=${slot} worker=${workerIndex} registered=${user.username} second=${second} attempts=${attempt}`,
-      );
-      return { username: user.username, email: user.email, token };
-    }
-    console.log(
-      `[auth] slot=${slot} mismatch: token of ${user.username} resolves to ${who ?? 'nobody'}, retrying`,
-    );
-    lastUsername = user.username;
-    lastWho = who;
-  }
-  throw new Error(
-    `Worker slot ${slot}: the token of ${lastUsername} resolves to ${lastWho ?? 'nobody'} after ${ATTEMPTS} attempts (token collision on the stand)`,
-  );
-}

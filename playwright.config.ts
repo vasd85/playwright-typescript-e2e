@@ -6,6 +6,8 @@ const isCI = !!process.env.CI;
 
 export default defineConfig({
   testDir: 'tests',
+  // Strips credentials from failure traces before the reporters copy them; see src/config/global-teardown.ts.
+  globalTeardown: './src/config/global-teardown.ts',
   fullyParallel: true,
   forbidOnly: isCI,
   retries: isCI ? 1 : 0,

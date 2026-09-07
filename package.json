@@ -22,6 +22,7 @@
     "cross-env": "10.1.0",
     "eslint": "10.9.1",
     "eslint-plugin-playwright": "2.11.0",
+    "fflate": "0.8.3",
     "prettier": "3.9.6",
     "typescript": "6.0.3",
     "typescript-eslint": "8.69.0",

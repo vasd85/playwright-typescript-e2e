@@ -11,7 +11,10 @@ export type Gate = {
 };
 
 export type GateFixture = {
-  /** Holds the next request of that method to that API path until `release` is called. */
+  /**
+   * Holds every request of that method to that API path until `release` is called;
+   * after that, matching requests pass through immediately.
+   */
   hold: (method: Method, apiPath: string) => Promise<Gate>;
 };
 
@@ -39,39 +42,42 @@ function deferred(): Deferred {
 export const test = base.extend<{ gate: GateFixture }>({
   gate: async ({ page }, use) => {
     const gates: Gate[] = [];
-    await use({
-      hold: async (method, apiPath) => {
-        const url = apiUrl(apiPath);
-        const intercepted = deferred();
-        const released = deferred();
-        const timer = setTimeout(() => {
-          intercepted.reject(
-            new Error(
-              `Gate: no ${method} ${url} request was intercepted within ${GATE_TIMEOUT_MS} ms`,
-            ),
-          );
-        }, GATE_TIMEOUT_MS);
-        // A gate that is never awaited must not surface as an unhandled rejection.
-        intercepted.promise.catch(() => {});
-        await page.route(url, async (route: Route) => {
-          if (route.request().method() !== method) return route.continue();
-          clearTimeout(timer);
-          intercepted.resolve();
-          await released.promise;
-          await route.continue();
-        });
-        const gate: Gate = {
-          held: intercepted.promise,
-          release: () => {
+    try {
+      await use({
+        hold: async (method, apiPath) => {
+          const url = apiUrl(apiPath);
+          const intercepted = deferred();
+          const released = deferred();
+          const timer = setTimeout(() => {
+            intercepted.reject(
+              new Error(
+                `Gate: no ${method} ${url} request was intercepted within ${GATE_TIMEOUT_MS} ms`,
+              ),
+            );
+          }, GATE_TIMEOUT_MS);
+          // A gate that is never awaited must not surface as an unhandled rejection.
+          intercepted.promise.catch(() => {});
+          await page.route(url, async (route: Route) => {
+            if (route.request().method() !== method) return route.continue();
             clearTimeout(timer);
-            released.resolve();
-          },
-        };
-        gates.push(gate);
-        return gate;
-      },
-    });
-    for (const gate of gates) gate.release();
-    await page.unrouteAll({ behavior: 'ignoreErrors' });
+            intercepted.resolve();
+            await released.promise;
+            await route.continue();
+          });
+          const gate: Gate = {
+            held: intercepted.promise,
+            release: () => {
+              clearTimeout(timer);
+              released.resolve();
+            },
+          };
+          gates.push(gate);
+          return gate;
+        },
+      });
+    } finally {
+      for (const gate of gates) gate.release();
+      await page.unrouteAll({ behavior: 'ignoreErrors' });
+    }
   },
 });

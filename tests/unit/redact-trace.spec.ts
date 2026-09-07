@@ -55,6 +55,20 @@ test.describe('trace redaction', () => {
     expect([...entries['resources/screenshot.jpeg']]).toEqual([...image]);
   });
 
+  test('discovers a password typed into a form that was never submitted', () => {
+    const fragments = [
+      `{"type":"before","apiName":"locator.fill","params":{"selector":"internal:role=textbox[name=\\"Password\\"i]","value":"${PASSWORD}"}}`,
+      `<input type="password" placeholder="Password" __playwright_value_="${PASSWORD}">`,
+    ];
+    expect([...collectSecrets([fragments[0]])]).toEqual([PASSWORD]);
+    expect([...collectSecrets([fragments[1]])]).toEqual([PASSWORD]);
+    expect(
+      collectSecrets([
+        `{"params":{"selector":"internal:role=textbox[name=\\"Email\\"i]","value":"${PASSWORD}"}}`,
+      ]).size,
+    ).toBe(0);
+  });
+
   test('ignores short values', () => {
     const text = '{"user":{"password":"abc"}}';
     const secrets = collectSecrets([text]);

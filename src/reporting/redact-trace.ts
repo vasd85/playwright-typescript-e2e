@@ -6,14 +6,19 @@ const MIN_SECRET_LENGTH = 8;
 
 /**
  * Where a trace of this application stores credentials: request bodies (`password`),
- * responses (`token`), the Authorization header of every request and the storage state
- * of the browser context (`jwtToken`). Each pattern captures the value.
+ * responses (`token`), the Authorization header of every request, the storage state
+ * of the browser context (`jwtToken`), and a password typed into a form. Each pattern
+ * captures the value.
  */
 const SECRET_PATTERNS: readonly RegExp[] = [
   /"password"\s*:\s*"([^"]+)"/g,
   /"token"\s*:\s*"([^"]+)"/g,
   /"name"\s*:\s*"authorization"\s*,\s*"value"\s*:\s*"Token ([^"]+)"/gi,
   /"name"\s*:\s*"jwtToken"\s*,\s*"value"\s*:\s*"([^"]+)"/g,
+  // A password typed into a form that was never submitted: the fill action keeps it in its
+  // parameters, and the DOM snapshot taken after the action keeps it in an attribute.
+  /"selector":"(?:[^"\\]|\\.)*password(?:[^"\\]|\\.)*"\s*,\s*"value":"((?:[^"\\]|\\.)+)"/gi,
+  /<input\b(?=[^>]*type="password")[^>]*__playwright_value_="([^"]+)"/g,
 ];
 
 /** First pass: every secret value the patterns find in the texts, plus the known ones. */

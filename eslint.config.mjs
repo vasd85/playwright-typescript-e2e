@@ -16,5 +16,12 @@ export default defineConfig(
   {
     files: ['tests/**/*.ts'],
     extends: [playwright.configs['flat/recommended']],
+    rules: {
+      // The signed-in and signed-out checks live in the header component; count them as assertions.
+      'playwright/expect-expect': [
+        'warn',
+        { assertFunctionNames: ['expectSignedInAs', 'expectSignedOut'] },
+      ],
+    },
   },
 );

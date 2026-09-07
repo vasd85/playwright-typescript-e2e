@@ -26,6 +26,8 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run typecheck
+      # Framework checks need neither a browser nor the stand: a green lint job means the framework is intact.
+      - run: npm run test:unit
 
   e2e:
     runs-on: ubuntu-latest

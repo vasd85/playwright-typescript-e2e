@@ -22,6 +22,8 @@ type StorageState = NonNullable<PlaywrightTestOptions['storageState']>;
 export const NO_AUTH: StorageState = { cookies: [], origins: [] };
 
 const ATTEMPTS = 3;
+// How long after the registration second ends the identity is checked: covers a small clock skew.
+const SECOND_BOUNDARY_MARGIN_MS = 300;
 
 /**
  * One disposable user per worker, registered through the API at most once per worker process.
@@ -90,6 +92,12 @@ function writeSession(statePath: string, { username, email, token }: SessionFile
   writeFileSync(statePath, JSON.stringify({ username, email, token }));
 }
 
+/** Waits until the second in which the stand answered is over, plus a margin for clock skew. */
+async function waitForNextSecond(respondedAt: number): Promise<void> {
+  const boundary = (Math.floor(respondedAt / 1000) + 1) * 1000 + SECOND_BOUNDARY_MARGIN_MS;
+  await sleep(Math.max(0, boundary - Date.now()));
+}
+
 /** The username the stand resolves the token to, or nothing when the token is dead. */
 async function whoAmI(api: APIRequestContext, token: string): Promise<string | undefined> {
   const response = await getCurrentUser(api, token);
@@ -110,9 +118,13 @@ async function staggerToSlotSecond(slot: number, workers: number): Promise<void>
 
 /**
  * Registers a fresh user and verifies with `GET /user` that the token really resolves to it.
- * A 201 is not proof: after a token collision the stand answers 201 and hands out a token
- * that belongs to somebody else. The outcome of a collision is not predictable, so the
- * identity check, not the stagger, is what catches it.
+ * A 201 is not proof: the stand derives the token from the user id and the integer second,
+ * and every anonymous registration on this shared stand gets the same user id, so any other
+ * registration in the same second yields the same token and rebinds it to its own session,
+ * whoever registered last. The stagger keeps our own workers apart; other users of the stand
+ * cannot be kept apart, so the identity is checked only after that second has passed, when
+ * the binding can no longer change. A mismatch means a collision: a new user is registered
+ * in a new second.
  */
 async function registerVerified(
   api: APIRequestContext,
@@ -130,7 +142,9 @@ async function registerVerified(
     if (response.status() !== 201) {
       throw new Error(`POST /users responded ${response.status()}: ${await response.text()}`);
     }
+    const respondedAt = Date.now();
     const { token } = UserResponseSchema.parse(await response.json()).user;
+    await waitForNextSecond(respondedAt);
     const who = await whoAmI(api, token);
     if (who === user.username) {
       console.log(

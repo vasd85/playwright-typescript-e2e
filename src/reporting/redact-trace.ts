@@ -16,9 +16,11 @@ const SECRET_PATTERNS: readonly RegExp[] = [
   /"name"\s*:\s*"authorization"\s*,\s*"value"\s*:\s*"Token ([^"]+)"/gi,
   /"name"\s*:\s*"jwtToken"\s*,\s*"value"\s*:\s*"([^"]+)"/g,
   // A password typed into a form that was never submitted: the fill action keeps it in its
-  // parameters, and the DOM snapshot taken after the action keeps it in an attribute.
-  /"selector":"(?:[^"\\]|\\.)*password(?:[^"\\]|\\.)*"\s*,\s*"value":"((?:[^"\\]|\\.)+)"/gi,
-  /<input\b(?=[^>]*type="password")[^>]*__playwright_value_="([^"]+)"/g,
+  // parameters (`"selector":…, "strict":…, "value":…`), and the DOM snapshot taken after
+  // the action keeps it as the `__playwright_value_` attribute of the password input, where
+  // a node is serialized as `["INPUT",{ attributes }, children]`.
+  /"selector":"(?:[^"\\]|\\.)*password(?:[^"\\]|\\.)*"(?:,"\w+":[^,}]*)*,"value":"((?:[^"\\]|\\.)+)"/gi,
+  /\["INPUT",\{(?=[^\]]*"type":"password")[^\]]*?"__playwright_value_":"((?:[^"\\]|\\.)+)"/g,
 ];
 
 /** First pass: every secret value the patterns find in the texts, plus the known ones. */

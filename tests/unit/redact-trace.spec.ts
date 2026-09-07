@@ -56,17 +56,18 @@ test.describe('trace redaction', () => {
   });
 
   test('discovers a password typed into a form that was never submitted', () => {
+    // The shapes are those of a real trace: the action record of the fill and the DOM snapshot.
     const fragments = [
-      `{"type":"before","apiName":"locator.fill","params":{"selector":"internal:role=textbox[name=\\"Password\\"i]","value":"${PASSWORD}"}}`,
-      `<input type="password" placeholder="Password" __playwright_value_="${PASSWORD}">`,
+      `{"type":"before","class":"Frame","method":"fill","params":{"selector":"internal:role=textbox[name=\\"Password\\"i]","strict":true,"value":"${PASSWORD}"}}`,
+      `["INPUT",{"__playwright_value_":"${PASSWORD}","formcontrolname":"password","name":"password","placeholder":"Password","type":"password"}]`,
     ];
     expect([...collectSecrets([fragments[0]])]).toEqual([PASSWORD]);
     expect([...collectSecrets([fragments[1]])]).toEqual([PASSWORD]);
-    expect(
-      collectSecrets([
-        `{"params":{"selector":"internal:role=textbox[name=\\"Email\\"i]","value":"${PASSWORD}"}}`,
-      ]).size,
-    ).toBe(0);
+    const other = [
+      `{"params":{"selector":"internal:role=textbox[name=\\"Email\\"i]","strict":true,"value":"${PASSWORD}"}}`,
+      `["INPUT",{"__playwright_value_":"${PASSWORD}","name":"email","type":"email"}]`,
+    ];
+    expect(collectSecrets(other).size).toBe(0);
   });
 
   test('ignores short values', () => {

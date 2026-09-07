@@ -11,7 +11,7 @@
     "test:ui": "playwright test --ui",
     "test:unit": "playwright test --project=unit",
     "test:failure-demo": "cross-env CONTRACT_FAILURE_DEMO=1 playwright test --grep @failure-demo --retries 0",
-    "lint": "eslint src tests playwright.config.ts eslint.config.mjs && prettier --check src tests playwright.config.ts eslint.config.mjs package.json tsconfig.json",
+    "lint": "eslint --max-warnings 0 src tests playwright.config.ts eslint.config.mjs && prettier --check src tests playwright.config.ts eslint.config.mjs package.json tsconfig.json",
     "typecheck": "tsc --noEmit",
     "format": "prettier --write src tests playwright.config.ts eslint.config.mjs package.json tsconfig.json"
   },
@@ -22,6 +22,7 @@
     "cross-env": "10.1.0",
     "eslint": "10.9.1",
     "eslint-plugin-playwright": "2.11.0",
+    "fflate": "0.8.3",
     "prettier": "3.9.6",
     "typescript": "6.0.3",
     "typescript-eslint": "8.69.0",

@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
-import type { APIRequestContext, PlaywrightTestOptions } from '@playwright/test';
+import type { APIRequestContext, APIResponse, PlaywrightTestOptions } from '@playwright/test';
 import { SessionFileSchema, UserResponseSchema, type SessionFile } from '../api/schemas/user';
 import { getCurrentUser, registerUser } from '../api/users.api';
 import { env } from '../config/env';
@@ -11,8 +11,11 @@ import { buildUser } from '../data/user.builder';
 export type StorageState = NonNullable<PlaywrightTestOptions['storageState']>;
 
 export const ATTEMPTS = 3;
-// How long after the registration second ends the identity is checked: covers a small clock skew.
-const SECOND_BOUNDARY_MARGIN_MS = 300;
+// The identity is checked in a request the stand dates at least this many seconds after the
+// registration: one second for the token's second to end, one more because the stand's
+// `Date` header may lag behind its clock by up to a second.
+const SECONDS_AFTER_REGISTRATION = 2;
+const IDENTITY_CHECK_DEADLINE_MS = 8_000;
 
 /** Where the session of a worker slot lives: inside the output directory the runner clears at the start of a run. */
 export function sessionPath(outputDir: string, slot: number): string {
@@ -46,10 +49,39 @@ export async function whoAmI(api: APIRequestContext, token: string): Promise<str
   return UserResponseSchema.parse(await response.json()).user.username;
 }
 
-/** Waits until the second in which the stand answered is over, plus a margin for clock skew. */
-export async function waitForNextSecond(respondedAt: number): Promise<void> {
-  const boundary = (Math.floor(respondedAt / 1000) + 1) * 1000 + SECOND_BOUNDARY_MARGIN_MS;
-  await sleep(Math.max(0, boundary - Date.now()));
+/** The second of the stand's clock at which it sent the response, from the `Date` header. */
+export function serverSecond(response: APIResponse): number {
+  const date = Date.parse(response.headers()['date'] ?? '');
+  if (Number.isNaN(date)) throw new Error('The stand answered without a Date header');
+  return Math.floor(date / 1000);
+}
+
+/**
+ * The username the token resolves to, asked in a request the stand dates after the
+ * registration second is over. The stand's clock, not ours, decides which second a token
+ * belongs to, so waiting by our own clock is not enough when the two disagree.
+ */
+async function whoAmIAfter(
+  api: APIRequestContext,
+  token: string,
+  registeredSecond: number,
+): Promise<{ who: string | undefined; second: number }> {
+  const deadline = Date.now() + IDENTITY_CHECK_DEADLINE_MS;
+  await sleep(1_500);
+  for (;;) {
+    const response = await getCurrentUser(api, token);
+    const second = serverSecond(response);
+    if (second >= registeredSecond + SECONDS_AFTER_REGISTRATION) {
+      if (response.status() !== 200) return { who: undefined, second };
+      return { who: UserResponseSchema.parse(await response.json()).user.username, second };
+    }
+    if (Date.now() > deadline) {
+      throw new Error(
+        `The stand clock did not move past the registration second ${registeredSecond}`,
+      );
+    }
+    await sleep(300);
+  }
 }
 
 /**
@@ -67,9 +99,9 @@ export async function staggerToSlotSecond(slot: number, workers: number): Promis
  * A 201 is not proof: the stand derives the token from the user id and the integer second,
  * and every anonymous registration on this shared stand gets the same user id, so any other
  * registration in the same second yields the same token and rebinds it to its own session,
- * whoever registered last. The identity is therefore checked only after that second has
- * passed, when the binding can no longer change. A mismatch means a collision: a new user is
- * registered in a new second. With `staggerWorkers` set, every attempt first waits for the
+ * whoever registered last. The identity is therefore checked in a request the stand itself
+ * dates after that second has passed, when the binding can no longer change. A mismatch
+ * means a collision: a new user is registered in a new second. With `staggerWorkers` set, every attempt first waits for the
  * second reserved for the slot; callers that register sequentially need no stagger.
  */
 export async function registerVerified(
@@ -84,15 +116,16 @@ export async function registerVerified(
     if (staggerWorkers !== undefined) await staggerToSlotSecond(slot, staggerWorkers);
     const user = buildUser(uniqueId(slot));
     const response = await registerUser(api, user);
-    const respondedAt = Date.now();
     if (response.status() !== 201) {
       throw new Error(`POST /users responded ${response.status()}: ${await response.text()}`);
     }
+    const registeredSecond = serverSecond(response);
     const { token } = UserResponseSchema.parse(await response.json()).user;
-    await waitForNextSecond(respondedAt);
-    const who = await whoAmI(api, token);
+    const { who, second } = await whoAmIAfter(api, token, registeredSecond);
     if (who === user.username) {
-      console.log(`[auth] ${label} registered=${user.username} attempts=${attempt}`);
+      console.log(
+        `[auth] ${label} registered=${user.username} attempts=${attempt} second=${registeredSecond} verified-at=${second}`,
+      );
       return { username: user.username, email: user.email, token };
     }
     console.log(

@@ -1,11 +1,14 @@
 import os from 'node:os';
 import { defineConfig, devices } from '@playwright/test';
 import { env } from './src/config/env';
+import { ALLURE_RESULTS_DIR } from './src/config/global-setup';
 
 const isCI = !!process.env.CI;
 
 export default defineConfig({
   testDir: 'tests',
+  // Clears the allure results of the previous run; see src/config/global-setup.ts.
+  globalSetup: './src/config/global-setup.ts',
   // Strips credentials from failure traces before the reporters copy them; see src/config/global-teardown.ts.
   globalTeardown: './src/config/global-teardown.ts',
   fullyParallel: true,
@@ -20,6 +23,24 @@ export default defineConfig({
     ['html', { open: 'never' }],
     // Written at the end of the run, so it survives the cleanup of outputDir: a machine-readable outcome for CI gates.
     ['json', { outputFile: 'test-results/report.json' }],
+    // Writes one result file per test; the report itself is built by `npm run report:allure`
+    // from allurerc.mjs. A static annotation `issue`/`tms` of a test becomes a link by these
+    // templates, and `allure.label.<name>` becomes an Allure label.
+    [
+      'allure-playwright',
+      {
+        resultsDir: ALLURE_RESULTS_DIR,
+        links: {
+          issue: { urlTemplate: 'https://github.com/vasd85/playwright-typescript-e2e/issues/%s' },
+          tms: { urlTemplate: 'https://tms.example.com/case/%s', nameTemplate: 'Test case %s' },
+        },
+        environmentInfo: {
+          BASE_URL: env.BASE_URL,
+          API_URL: env.API_URL,
+          node: process.version,
+        },
+      },
+    ],
   ],
   use: {
     baseURL: env.BASE_URL,

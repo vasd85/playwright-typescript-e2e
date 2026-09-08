@@ -16,7 +16,7 @@ const FRAGMENTS = [
   `{"storageState":{"origins":[{"localStorage":[{"name":"jwtToken","value":"${TOKEN}"}]}]}}`,
 ];
 
-test.describe('trace redaction', () => {
+test.describe('Trace redaction', () => {
   test('masks every known form of a secret', () => {
     const secrets = collectSecrets(FRAGMENTS);
     expect([...secrets].sort()).toEqual([PASSWORD, TOKEN].sort());

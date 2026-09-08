@@ -9,8 +9,7 @@ test(
   'a new user signs up, logs out and logs in again',
   {
     tag: '@tc-1',
-    // `allure.label.<name>` is the form the reporter turns into a label; the short
-    // `allure.<name>` silently becomes a label named null.
+    // Allure turns a static annotation `allure.label.<name>` into a label of that name.
     annotation: [
       { type: 'allure.label.epic', description: 'Authentication' },
       { type: 'allure.label.feature', description: 'Registration' },

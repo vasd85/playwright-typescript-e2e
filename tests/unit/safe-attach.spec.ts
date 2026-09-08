@@ -1,38 +1,31 @@
 import { test, expect } from '@playwright/test';
 import { attachJson, maskSecrets } from '../../src/reporting/safe-attach';
 
-// A response of the stand in the shape the API layer returns it: the token is the field
-// that must never reach a report artifact.
 const TOKEN = 'tok-0123456789abcdef';
 const RESPONSE = { user: { username: 'qa1', email: 'qa1@example.com', token: TOKEN } };
 
-/** The body of the attachment recorded last: an inline attachment keeps it in memory. */
-function lastAttachmentBody(): string {
-  const attachment = test.info().attachments.at(-1);
-  expect(attachment?.body, 'the attachment carries a body').toBeTruthy();
-  return attachment!.body!.toString('utf8');
+function attachmentBody(name: string): string {
+  const attachment = test.info().attachments.find((recorded) => recorded.name === name);
+  if (!attachment?.body) throw new Error(`No attachment named ${name} carries a body`);
+  return attachment.body.toString('utf8');
 }
 
-test.describe('safe attachments', () => {
+test.describe('Safe attachments', () => {
   test('masks a token before it reaches the report', async () => {
     await attachJson('user.json', RESPONSE);
-    const body = lastAttachmentBody();
+    const body = attachmentBody('user.json');
     expect(body).toContain('"token": "***"');
     expect(body).not.toContain(TOKEN);
-    // The rest of the object survives: an attachment is evidence, not a black box.
     expect(body).toContain('"username": "qa1"');
   });
 
   test('leaves a value too short to be a credential alone', async () => {
     await attachJson('short.json', { user: { token: 'abc' } });
-    // Documented limit of collectSecrets: values under eight characters are not secrets,
-    // otherwise every short word in a body would be masked.
-    expect(lastAttachmentBody()).toContain('"token": "abc"');
+    // Documented limit of collectSecrets: under eight characters is not a secret.
+    expect(attachmentBody('short.json')).toContain('"token": "abc"');
   });
 
   test('masks a token in an assertion message', () => {
-    // The message of a failed check reaches the terminal, the json report and the allure
-    // result; none of those is rewritten by the trace redaction of global teardown.
     const message = `Article contract violated: field "user" is required, received {"token":"${TOKEN}"}`;
     expect(maskSecrets(message)).toContain('"token":"***"');
     expect(maskSecrets(message)).not.toContain(TOKEN);

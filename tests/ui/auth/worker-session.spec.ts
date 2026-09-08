@@ -1,13 +1,11 @@
 import { test, expect } from '../../../src/fixtures';
 
-// Every test here starts signed in: the worker fixture registered a user through the API once,
-// and the browser context received the token. No login form is involved.
+// Every test here starts signed in through the worker fixture: no login form is involved.
 test.describe(
   'Worker session',
   {
     tag: '@arch-1',
-    // Allure reads static annotations of the declaration; `allure.label.<name>` is the form
-    // that becomes a label, the short `allure.<name>` silently becomes a label named null.
+    // Allure turns a static annotation `allure.label.<name>` into a label of that name.
     annotation: [
       { type: 'allure.label.epic', description: 'Authentication' },
       { type: 'allure.label.feature', description: 'Worker session' },

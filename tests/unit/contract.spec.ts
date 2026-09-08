@@ -12,12 +12,17 @@ const VALID = {
 };
 const BROKEN = { ...VALID, body: null };
 
-/** Names of the attachments recorded so far, in order. */
 function attachmentNames(): string[] {
   return test.info().attachments.map((attachment) => attachment.name);
 }
 
-test.describe('article contract check', () => {
+function attachmentBody(name: string): string {
+  const attachment = test.info().attachments.find((recorded) => recorded.name === name);
+  if (!attachment?.body) throw new Error(`No attachment named ${name} carries a body`);
+  return attachment.body.toString('utf8');
+}
+
+test.describe('Article contract check', () => {
   test('passes on a response that matches the schema', async () => {
     await expectContract(ArticleSchema, VALID, {
       subject: 'Article',
@@ -25,13 +30,12 @@ test.describe('article contract check', () => {
       snapshot: 'article.json',
     });
     expect(attachmentNames()).toEqual(['article.json', 'violations.json']);
-    const violations = test.info().attachments.at(-1)!.body!.toString('utf8');
-    expect(JSON.parse(violations)).toEqual([]);
+    expect(JSON.parse(attachmentBody('violations.json'))).toEqual([]);
   });
 
-  test('names the field and the value it got', async () => {
-    // The canonical message: the CI gate of the failure demo matches on its beginning, and
-    // the README quotes it, so it is pinned here rather than only in the task case.
+  test('fails with a message that names the field and the value it got', async () => {
+    // The CI gate of the failure demo matches on the beginning of this message and the README
+    // quotes it, so the wording is pinned here rather than only in the task case.
     const error = await expectContract(ArticleSchema, BROKEN, {
       subject: 'Article',
       step: 'Check that the article body is not null',

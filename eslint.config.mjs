@@ -14,9 +14,9 @@ export default defineConfig(
     },
   },
   {
-    // Plain node scripts: `no-undef` from the recommended set is switched off for TypeScript
-    // by typescript-eslint, but not for .mjs, so the globals they use are declared here.
-    files: ['scripts/**/*.mjs'],
+    // Every .mjs here runs in node. `no-undef` from the recommended set is switched off for
+    // TypeScript by typescript-eslint, but not for .mjs, so node globals are declared once.
+    files: ['**/*.mjs'],
     languageOptions: { globals: { process: 'readonly', console: 'readonly' } },
   },
   {

@@ -15,7 +15,7 @@ export default defineConfig({
     rules: [
       {
         name: 'Article contract defect',
-        matchers: { statuses: ['failed'], message: /contract violated/ },
+        matchers: { statuses: ['failed'], message: /contract violated/i },
       },
       // An outage of the shared demo stand is not a defect of the application under test.
       // Only transport-level failures count: a timeout is matched for navigation and API

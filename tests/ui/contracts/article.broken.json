@@ -1,0 +1,19 @@
+{
+  "article": {
+    "slug": "qa-contract-demo-broken-body",
+    "title": "Payment routing rules for the quarter",
+    "description": "How the router picks a provider",
+    "body": null,
+    "tagList": ["payments", "routing"],
+    "createdAt": "2026-09-08T09:00:00.000Z",
+    "updatedAt": "2026-09-08T09:00:00.000Z",
+    "favorited": false,
+    "favoritesCount": 0,
+    "author": {
+      "username": "conduit-demo-author",
+      "bio": null,
+      "image": "/assets/default-avatar.svg",
+      "following": false
+    }
+  }
+}

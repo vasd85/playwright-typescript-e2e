@@ -20,7 +20,7 @@ export default defineConfig({
   reporter: [
     ['list'],
     ['html', { open: 'never' }],
-    // Written at the end of the run, so it survives the cleanup of outputDir: a machine-readable outcome for CI gates.
+    // Written at the end of the run, so it survives the cleanup of outputDir.
     ['json', { outputFile: 'test-results/report.json' }],
     // Writes one result file per test; `npm run report:allure` builds the report from them.
     // A static annotation `issue`/`tms` becomes a link by these templates.

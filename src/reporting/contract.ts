@@ -20,7 +20,6 @@ export type ContractOptions = {
 /** Enough of a rejected value to recognise it, not a whole payload. */
 const SHOWN_VALUE_LIMIT = 120;
 
-/** `field "body" is required, received null` for every issue the schema reports. */
 function violationsOf(schema: ZodType, value: unknown): string[] {
   const parsed = schema.safeParse(value);
   if (parsed.success) return [];

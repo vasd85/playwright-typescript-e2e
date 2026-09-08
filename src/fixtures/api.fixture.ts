@@ -48,8 +48,8 @@ export const test = authTest.extend<ApiTestFixtures, ApiWorkerFixtures>({
     }
     if (survived.length === 0) return;
 
-    // A test that declared an expected failure absorbs everything after that declaration,
-    // teardown included, so the leak also goes where global teardown will find it.
+    // The cleanup above always runs. What a test with an expected failure absorbs is the
+    // error thrown from here, so the leak also goes where global teardown will find it.
     const message = `Articles left on the stand: ${survived.join(', ')}`;
     mkdirSync(testInfo.project.outputDir, { recursive: true });
     appendFileSync(path.join(testInfo.project.outputDir, LEAK_LOG_NAME), `${message}\n`);

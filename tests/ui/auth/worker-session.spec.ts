@@ -5,7 +5,6 @@ test.describe(
   'Worker session',
   {
     tag: '@arch-1',
-    // Allure turns a static annotation `allure.label.<name>` into a label of that name.
     annotation: [
       { type: 'allure.label.epic', description: 'Authentication' },
       { type: 'allure.label.feature', description: 'Worker session' },

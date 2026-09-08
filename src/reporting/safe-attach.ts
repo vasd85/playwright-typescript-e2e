@@ -10,9 +10,8 @@ export function maskSecrets(text: string): string {
 }
 
 /**
- * Attaches a JSON snapshot to the current test with credentials masked. The promise must be
- * awaited: an attachment made inside a step is shown in that step, and one that loses the
- * race with a failing assertion is lost.
+ * Attaches a JSON snapshot to the current test with credentials masked. Awaiting it is what
+ * puts the attachment inside the running step and ahead of the assertion that may end the test.
  */
 export function attachJson(name: string, value: unknown): Promise<void> {
   return test.info().attach(name, {

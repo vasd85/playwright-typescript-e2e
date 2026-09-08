@@ -25,10 +25,10 @@ export const NewArticleSchema = z.object({
 export const ArticleRequestSchema = z.object({ article: NewArticleSchema });
 
 /**
- * The response envelope with the article left unchecked. The contract helper has to receive the
- * article itself: on the envelope a violation would read `field "article.body"`, and the message
- * the assignment asks for names the field alone.
+ * The response envelope. Only the slug is checked, because the cleanup needs it: the contract
+ * helper has to receive the article as it arrived, and on a fully checked envelope a violation
+ * would read `field "article.body"` while the message the assignment asks for names `body`.
  */
-export const ArticleEnvelopeSchema = z.object({ article: z.unknown() });
+export const ArticleEnvelopeSchema = z.object({ article: z.looseObject({ slug: z.string() }) });
 
 export type NewArticle = z.infer<typeof NewArticleSchema>;

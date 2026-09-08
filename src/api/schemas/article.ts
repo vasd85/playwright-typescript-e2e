@@ -1,6 +1,5 @@
 import { z } from 'zod';
 
-/** The `article` object returned by the article endpoints of the Conduit API. */
 export const ArticleSchema = z.object({
   slug: z.string(),
   title: z.string(),

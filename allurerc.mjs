@@ -1,30 +1,24 @@
 import { defineConfig } from 'allure';
 
-/**
- * Report-side configuration: the reporter in playwright.config.ts only writes results,
- * the categories below are computed by `npm run report:allure` when the report is built.
- *
- * Category names are deliberately not the built-in "Product errors" and "Test errors":
- * a failed test lands in the built-in one even when no rule matches, so a distinct name
- * is what proves that a rule of ours fired.
- */
+// The reporter in playwright.config.ts only writes results; the report is built from them by
+// `npm run report:allure`, and the categories below are computed at that point.
 export default defineConfig({
   name: 'Conduit E2E',
   output: './allure-report',
   plugins: {
     awesome: { options: { reportName: 'Conduit E2E' } },
   },
+  // A failed test is matched against these rules top to bottom; the first hit becomes its
+  // category. The names are our own, not the built-in "Product errors": a failure lands in
+  // the built-in category with no rules at all, so only our own name proves a rule matched.
   categories: {
     rules: [
       {
-        // The article contract check of TC4 and every future schema check: the message of
-        // expectContract always starts with `<subject> contract violated`.
         name: 'Article contract defect',
         matchers: { statuses: ['failed'], message: /contract violated/ },
       },
+      // An outage of the shared demo stand is not a defect of the application under test.
       {
-        // The public demo stand is shared and outside our control: its outages must not
-        // read as defects of the application under test.
         name: 'Stand or network problem',
         matchers: {
           statuses: ['failed', 'broken'],

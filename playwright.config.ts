@@ -7,7 +7,6 @@ const isCI = !!process.env.CI;
 
 export default defineConfig({
   testDir: 'tests',
-  // Clears the allure results of the previous run; see src/config/global-setup.ts.
   globalSetup: './src/config/global-setup.ts',
   // Strips credentials from failure traces before the reporters copy them; see src/config/global-teardown.ts.
   globalTeardown: './src/config/global-teardown.ts',
@@ -23,17 +22,15 @@ export default defineConfig({
     ['html', { open: 'never' }],
     // Written at the end of the run, so it survives the cleanup of outputDir: a machine-readable outcome for CI gates.
     ['json', { outputFile: 'test-results/report.json' }],
-    // Writes one result file per test; the report itself is built by `npm run report:allure`
-    // from allurerc.mjs. A static annotation `issue`/`tms` of a test becomes a link by these
-    // templates, and `allure.label.<name>` becomes an Allure label.
+    // Writes one result file per test; `npm run report:allure` builds the report from them.
+    // A static annotation `issue`/`tms` becomes a link by these templates.
     [
       'allure-playwright',
       {
         resultsDir: ALLURE_RESULTS_DIR,
         links: {
           issue: { urlTemplate: 'https://github.com/vasd85/playwright-typescript-e2e/issues/%s' },
-          // No test management system belongs to this repository: the template shows the
-          // mechanism on the reserved example domain and is not pointed at by any test.
+          // No test management system belongs to this repository: a reserved example domain.
           tms: { urlTemplate: 'https://tms.example.com/case/%s', nameTemplate: 'Test case %s' },
         },
         environmentInfo: {

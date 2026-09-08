@@ -41,8 +41,6 @@ test.describe(
         return tags;
       });
 
-      // Two independent channels: the body proves the page was served the replacement rather
-      // than the real tags, the sidebar proves it rendered that body and nothing else.
       await test.step('Check that the page received the replaced body', async () => {
         expect(
           TagsResponseSchema.parse(await response.json()).tags,
@@ -69,8 +67,6 @@ test.describe(
         await expect(popularTags.tags).toHaveText(MOCKED_TAGS);
       });
 
-      // Choosing a tag opens its own feed: the application adds a third tab named after the tag
-      // and makes it the active one.
       await test.step('Click a mocked tag and check the feed it opens', async () => {
         await popularTags.tag(CLICKED_TAG).click();
         await expect(page).toHaveURL(`/tag/${CLICKED_TAG}`);

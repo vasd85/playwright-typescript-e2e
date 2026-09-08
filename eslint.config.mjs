@@ -14,6 +14,12 @@ export default defineConfig(
     },
   },
   {
+    // Plain node scripts: `no-undef` from the recommended set is switched off for TypeScript
+    // by typescript-eslint, but not for .mjs, so the globals they use are declared here.
+    files: ['scripts/**/*.mjs'],
+    languageOptions: { globals: { process: 'readonly', console: 'readonly' } },
+  },
+  {
     files: ['tests/**/*.ts'],
     extends: [playwright.configs['flat/recommended']],
     rules: {

@@ -54,13 +54,21 @@ export default function globalTeardown(config: FullConfig): void {
       failures.push(quarantine(trace, error));
     }
   }
-  for (const context of contexts) replacements += redactTextFile(context, secrets);
+  for (const context of contexts) {
+    // Same policy as for archives: one file that cannot be redacted must not leave the rest
+    // of them unredacted, and it is removed rather than published half-masked.
+    try {
+      replacements += redactTextFile(context, secrets);
+    } catch (error) {
+      failures.push(quarantine(context, error));
+    }
+  }
 
   console.log(
     `[redact] ${traces.length} archive(s), ${contexts.length} text file(s), ${replacements} replacement(s)`,
   );
   if (failures.length > 0) {
-    throw new Error(`Trace redaction failed, the archives were removed: ${failures.join(', ')}`);
+    throw new Error(`Redaction failed, the files were removed: ${failures.join(', ')}`);
   }
   // Data left on the shared stand turns the run red even when the test that created it
   // declared an expected failure and so absorbed its own teardown.
@@ -69,13 +77,13 @@ export default function globalTeardown(config: FullConfig): void {
   }
 }
 
-/** Removes an archive that could not be redacted and leaves a note without any values. */
-function quarantine(trace: string, error: unknown): string {
+/** Removes a file that could not be redacted and leaves a note without any values. */
+function quarantine(file: string, error: unknown): string {
   const reason = error instanceof Error ? error.message : String(error);
-  unlinkSync(trace);
+  unlinkSync(file);
   writeFileSync(
-    path.join(path.dirname(trace), 'trace-redaction-failed.txt'),
-    `${path.basename(trace)} was removed: it could not be redacted (${reason}).\n`,
+    path.join(path.dirname(file), 'redaction-failed.txt'),
+    `${path.basename(file)} was removed: it could not be redacted (${reason}).\n`,
   );
-  return trace;
+  return file;
 }

@@ -6,11 +6,7 @@ export const ALLURE_RESULTS_DIR = 'allure-results';
 /** File under the output directory where the article cleanup records what it could not delete. */
 export const LEAK_LOG_NAME = 'leaked-articles.log';
 
-/**
- * The allure reporter creates its results directory but never clears it, so without this
- * every report would mix the current run with all previous ones — including the files that
- * `playwright test --list` leaves behind for tests it never ran.
- */
+/** The allure reporter creates its results directory but never clears it, so runs would pile up. */
 export default function globalSetup(): void {
   rmSync(ALLURE_RESULTS_DIR, { recursive: true, force: true });
 }

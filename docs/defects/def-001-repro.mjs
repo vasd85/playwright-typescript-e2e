@@ -39,8 +39,6 @@ function serverSecond(response) {
   return Math.floor(parsed / 1000);
 }
 
-/** Registers one account. The request carries no Authorization header on purpose: sending
- * a foreign token with a registration breaks that token on this stand. */
 async function register(api, username, password) {
   const body = { user: { username, email: `${username}@example.com`, password } };
   let response;

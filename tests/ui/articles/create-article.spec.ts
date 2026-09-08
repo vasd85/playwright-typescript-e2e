@@ -127,28 +127,42 @@ test.describe(
       // The cleanup is registered before the first assertion that could end the test.
       createdArticles.push(created.slug);
 
-      await test.step('Validate the response body from the server', () => {
+      await test.step('Validate the response body from the server', async () => {
         expect(response.status(), 'POST /api/articles creates the article').toBe(201);
+        // The shape first, reported as a business problem; then the values it carries.
+        await expectContract(ArticleSchema, created, {
+          subject: 'Article',
+          step: 'Check that the created article matches its contract',
+          snapshot: 'article.json',
+        });
+        const published = ArticleSchema.parse(created);
+        expect(published.title, 'the stand stored the title that was typed').toBe(article.title);
+        expect(published.description, 'the stand stored the description that was typed').toBe(
+          article.description,
+        );
+        expect(published.body, 'the stand stored the body that was typed').toBe(article.body);
+        // The stand decides the order of the tags, so they are compared as a set.
+        expect([...published.tagList].sort(), 'the stand stored the tags that were typed').toEqual(
+          [...article.tagList].sort(),
+        );
+        expect(published.author.username, 'the article belongs to its author').toBe(
+          workerAuth.username,
+        );
+      });
+
+      await test.step('Check that the editor sent what was typed', () => {
         const sent = ArticleRequestSchema.parse(response.request().postDataJSON()).article;
         expect(sent.title, 'the editor sent the title that was typed').toBe(article.title);
         expect(sent.description, 'the editor sent the description that was typed').toBe(
           article.description,
         );
         expect(sent.body, 'the editor sent the body that was typed').toBe(article.body);
-        // The stand decides the order of the tags, so they are compared as a set.
         expect([...sent.tagList].sort(), 'the editor sent the tags that were typed').toEqual(
           [...article.tagList].sort(),
         );
       });
 
-      await expectContract(ArticleSchema, created, {
-        subject: 'Article',
-        step: 'Check that the created article matches its contract',
-        snapshot: 'article.json',
-      });
-
       await test.step('Check the redirect to the created article page and the data shown', async () => {
-        expect(created.slug, 'the stand assigned a slug').not.toBe('');
         await expect(page).toHaveURL(`/article/${created.slug}`);
         await expect(articlePage.title).toHaveText(article.title);
         await expect(articlePage.body).toContainText(article.body);

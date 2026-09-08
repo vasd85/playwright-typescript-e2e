@@ -10,7 +10,7 @@ const DEFAULT_REGISTRY = [
   {
     tag: '@failure-demo',
     message: 'Article contract violated',
-    issue: 'README#failure-demo',
+    issue: 'https://github.com/vasd85/playwright-typescript-e2e/blob/main/README.md#failure-demo',
   },
 ];
 
@@ -43,13 +43,22 @@ function collect(report) {
   return tests;
 }
 
-function problemsOf(tests) {
+function problemsOf(report, tests) {
   const problems = [];
   if (tests.length === 0) problems.push('no tests in the report');
+  // Failures outside any test - a broken global setup, for one - are reported here and nowhere
+  // in the suites, so a run that never reached the expected red test would otherwise pass.
+  for (const error of report.errors ?? []) {
+    problems.push(`error outside the tests: ${(error.message ?? '').split('\n')[0]}`);
+  }
   for (const test of tests) {
     const entry = registry.find((candidate) => test.tags.includes(bare(candidate.tag)));
     if (!entry) {
-      if (test.status === 'unexpected') problems.push(`unexpected failure: "${test.title}"`);
+      // `flaky` counts too: a retried failure is still a failure nobody registered, and the
+      // demo command pins --retries 0 only for as long as nobody edits it.
+      if (test.status === 'unexpected' || test.status === 'flaky') {
+        problems.push(`unexpected failure: "${test.title}" (${test.status})`);
+      }
       continue;
     }
     if (test.status !== 'unexpected') {
@@ -69,10 +78,13 @@ function problemsOf(tests) {
   return problems;
 }
 
-const problems =
-  reportPath && fs.existsSync(reportPath)
-    ? problemsOf(collect(JSON.parse(fs.readFileSync(reportPath, 'utf8'))))
-    : [`report not found: ${reportPath}`];
+function verdict() {
+  if (!reportPath || !fs.existsSync(reportPath)) return [`report not found: ${reportPath}`];
+  const report = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
+  return problemsOf(report, collect(report));
+}
+
+const problems = verdict();
 
 console.log(
   problems.length

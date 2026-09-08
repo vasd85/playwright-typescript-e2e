@@ -22,8 +22,9 @@ const isArticleRequest = (response: Response): boolean =>
   response.url() === ARTICLE_URL && response.request().method() === 'GET';
 
 /**
- * The comments of the same slug are served too: the stand answers 404 for an article it does
- * not have, and that answer would show up in the console channel the first test asserts on.
+ * The comments of the same slug are served too, and the page does not render without them:
+ * the stand answers 404 for an article it does not have, and the application then shows no
+ * article at all. Measured by removing this route: the title never appears.
  */
 const mockCorruptedArticle = async (page: Page): Promise<void> => {
   await page.route(ARTICLE_URL, (route) =>
@@ -65,21 +66,21 @@ test.describe(
         await expect(articlePage.title).toHaveText(corrupted.title);
       });
 
-      // The title above proves the page rendered this response, so an empty body below is the
-      // corruption showing through and not a page that has not painted yet.
-      await test.step('Check that nothing on the page reveals the corruption', async () => {
-        await expect(articlePage.authorLink(corrupted.author.username)).toBeVisible();
-        await expect(articlePage.body).toBeEmpty();
-        await expect(page.getByText('null', { exact: true })).toHaveCount(0);
-        expect(pageErrors, 'the corruption did not crash the page').toEqual([]);
-      });
-
-      // The one trace the corruption does leave is a console error, and no user ever sees it:
-      // the markdown renderer refuses a null input while the page around it looks finished.
+      // This waits for the markdown renderer to have run and refused, which is what makes the
+      // checks below meaningful: an empty body would otherwise also describe a page that has
+      // simply not painted yet. The error itself is the one trace the corruption leaves, and
+      // no user ever sees it.
       await test.step('Check that the only trace is a console error', async () => {
         await expect
           .poll(() => consoleErrors.join('\n'), { message: 'the console reports the corruption' })
           .toContain('marked(): input parameter is undefined or null');
+      });
+
+      await test.step('Check that nothing on the page reveals the corruption', async () => {
+        await expect(articlePage.authorLink(corrupted.author.username)).toBeVisible();
+        await expect(articlePage.body).toBeEmpty();
+        await expect(articlePage.nullText).toHaveCount(0);
+        expect(pageErrors, 'the corruption did not crash the page').toEqual([]);
       });
     });
 
@@ -112,7 +113,7 @@ test.describe(
           });
 
         await test.step('Open the article page', async () => {
-          await expect(articlePage.title).toBeVisible();
+          await expect(articlePage.title).toHaveText(corrupted.title);
         });
 
         // The object the UI was served, not the file: that is what the check is about.

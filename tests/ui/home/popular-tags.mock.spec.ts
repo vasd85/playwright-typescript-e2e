@@ -41,8 +41,8 @@ test.describe(
         return tags;
       });
 
-      // Two independent channels. The body proves the page was served the replacement rather
-      // than the fifteen real tags; the sidebar proves it rendered that body and nothing else.
+      // Two independent channels: the body proves the page was served the replacement rather
+      // than the real tags, the sidebar proves it rendered that body and nothing else.
       await test.step('Check that the page received the replaced body', async () => {
         expect(
           TagsResponseSchema.parse(await response.json()).tags,

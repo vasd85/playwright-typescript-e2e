@@ -6,8 +6,8 @@ export class PopularTagsComponent {
   readonly tags: Locator;
 
   constructor(page: Page) {
-    // No test ids in the application, and the home page carries five `.tag-list` containers -
-    // one per article preview plus this one. Only the sidebar list is Popular Tags.
+    // No test ids in the application, and the class of a tag list is shared with every article
+    // preview on the same page, so only the sidebar copy is Popular Tags.
     this.sidebar = page.locator('.sidebar');
     this.tags = this.sidebar.locator('.tag-list a');
   }

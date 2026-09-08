@@ -25,10 +25,9 @@ export const NewArticleSchema = z.object({
 export const ArticleRequestSchema = z.object({ article: NewArticleSchema });
 
 /**
- * The response envelope. It checks only the fields a test addresses by name, and `body` is
- * deliberately not among them: the contract helper has to receive the article as it arrived,
- * and on a fully checked envelope a violation would read `field "article.body"` while the
- * message the assignment asks for names `body` alone.
+ * The response envelope, checking only the fields a test addresses by name. `body` is left out
+ * on purpose: the contract helper receives the article as it arrived, and on a fully checked
+ * envelope a violation would read `field "article.body"` instead of `field "body"`.
  */
 export const ArticleEnvelopeSchema = z.object({
   article: z.looseObject({

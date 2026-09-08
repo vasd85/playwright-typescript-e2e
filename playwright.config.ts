@@ -32,6 +32,8 @@ export default defineConfig({
         resultsDir: ALLURE_RESULTS_DIR,
         links: {
           issue: { urlTemplate: 'https://github.com/vasd85/playwright-typescript-e2e/issues/%s' },
+          // No test management system belongs to this repository: the template shows the
+          // mechanism on the reserved example domain and is not pointed at by any test.
           tms: { urlTemplate: 'https://tms.example.com/case/%s', nameTemplate: 'Test case %s' },
         },
         environmentInfo: {

@@ -11,6 +11,7 @@ test.describe(
     annotation: [
       { type: 'allure.label.epic', description: 'Authentication' },
       { type: 'allure.label.feature', description: 'Worker session' },
+      { type: 'allure.label.story', description: 'A signed-in worker user without the login form' },
       { type: 'allure.label.severity', description: 'critical' },
     ],
   },

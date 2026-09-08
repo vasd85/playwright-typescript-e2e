@@ -18,11 +18,15 @@ export default defineConfig({
         matchers: { statuses: ['failed'], message: /contract violated/ },
       },
       // An outage of the shared demo stand is not a defect of the application under test.
+      // Only transport-level failures count: a timeout is matched for navigation and API
+      // calls, not for `waitForResponse` or an assertion — those mean the application did
+      // not do what it should, and belong to the built-in Product errors.
       {
         name: 'Stand or network problem',
         matchers: {
           statuses: ['failed', 'broken'],
-          message: /Timeout .* exceeded|ECONNREFUSED|ECONNRESET|ETIMEDOUT|net::ERR_/,
+          message:
+            /net::ERR_|ECONNREFUSED|ECONNRESET|ETIMEDOUT|EAI_AGAIN|(?:page\.goto|apiRequestContext\.\w+): Timeout .* exceeded/,
         },
       },
     ],

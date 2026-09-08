@@ -2,8 +2,9 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import type { Page, Response } from '@playwright/test';
 import { apiUrl } from '../../../src/api/client';
+import { expectValid } from '../../../src/api/expect-valid';
 import { ArticleEnvelopeSchema, ArticleSchema } from '../../../src/api/schemas/article';
-import { expectContract } from '../../../src/reporting/contract';
+import { env } from '../../../src/config/env';
 import { test, expect, NO_AUTH } from '../../../src/fixtures';
 
 // The case begins with a signed-out user: this file opts out of the worker session.
@@ -119,11 +120,12 @@ test.describe(
         // would compare a constant with a schema and prove nothing about the mock.
         const { article } = ArticleEnvelopeSchema.parse(await response.json());
 
-        await expectContract(ArticleSchema, article, {
-          subject: 'Article',
-          step: 'Check that the article body is not null',
-          snapshot: 'article.broken.json',
-          expectedFailure: 'The mock serves an article whose body is null on purpose.',
+        await test.step('Check that the article body is not null', async () => {
+          test.fail(
+            !env.CONTRACT_FAILURE_DEMO,
+            'The mock serves an article whose body is null on purpose.',
+          );
+          await expectValid(ArticleSchema, article, 'article.broken.json');
         });
       },
     );

@@ -32,9 +32,6 @@ export const ArticleEnvelopeSchema = z.object({
   article: z.looseObject({
     slug: z.string(),
     title: z.string(),
-    description: z.string(),
-    body: z.string().nullable(),
-    tagList: z.array(z.string()),
     author: z.looseObject({ username: z.string() }),
   }),
 });

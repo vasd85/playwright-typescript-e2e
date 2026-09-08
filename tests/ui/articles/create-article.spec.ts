@@ -1,14 +1,10 @@
 import type { Locator, Page, Response } from '@playwright/test';
 import { apiUrl } from '../../../src/api/client';
-import {
-  ArticleEnvelopeSchema,
-  ArticleRequestSchema,
-  ArticleSchema,
-} from '../../../src/api/schemas/article';
+import { expectValid } from '../../../src/api/expect-valid';
+import { ArticleRequestSchema, ArticleResponseSchema } from '../../../src/api/schemas/article';
 import { ValidationErrorSchema } from '../../../src/api/schemas/errors';
 import { buildArticle } from '../../../src/data/article.builder';
 import { uniqueId } from '../../../src/data/unique';
-import { expectContract } from '../../../src/reporting/contract';
 import { test, expect } from '../../../src/fixtures';
 
 /** Compared in full: `/articles` also begins the feed, the comments and the favourites. */
@@ -128,28 +124,29 @@ test.describe(
       });
 
       const response = await submitAndCatchResponse(page, () => editorPage.submit());
-      const { article: created } = ArticleEnvelopeSchema.parse(await response.json());
-      // The cleanup is registered before the first assertion that could end the test.
-      createdArticles.push(created.slug);
 
-      await test.step('Validate the response body from the server', async () => {
+      const created = await test.step('Validate the response body from the server', async () => {
         expect(response.status(), 'POST /api/articles creates the article').toBe(201);
-        await expectContract(ArticleSchema, created, {
-          subject: 'Article',
-          step: 'Check that the created article matches its contract',
-          snapshot: 'article.json',
-        });
-        expect(created.title, 'the stand stored the title that was typed').toBe(article.title);
-        expect(created.description, 'the stand stored the description that was typed').toBe(
+        const { article: stored } = await expectValid(
+          ArticleResponseSchema,
+          await response.json(),
+          'article.json',
+        );
+        // Recorded before the comparisons below, so a failing one still leaves it to the cleanup.
+        createdArticles.push(stored.slug);
+
+        expect(stored.title, 'the stand stored the title that was typed').toBe(article.title);
+        expect(stored.description, 'the stand stored the description that was typed').toBe(
           article.description,
         );
-        expect(created.body, 'the stand stored the body that was typed').toBe(article.body);
-        expect([...created.tagList].sort(), 'the stand stored the tags that were typed').toEqual(
+        expect(stored.body, 'the stand stored the body that was typed').toBe(article.body);
+        expect([...stored.tagList].sort(), 'the stand stored the tags that were typed').toEqual(
           [...article.tagList].sort(),
         );
-        expect(created.author.username, 'the article belongs to its author').toBe(
+        expect(stored.author.username, 'the article belongs to its author').toBe(
           workerAuth.username,
         );
+        return stored;
       });
 
       await test.step('Check that the editor sent what was typed', () => {
@@ -202,7 +199,11 @@ test.describe(
       });
 
       const response = await submitAndCatchResponse(page, () => editorPage.submit());
-      const { article: created } = ArticleEnvelopeSchema.parse(await response.json());
+      const { article: created } = await expectValid(
+        ArticleResponseSchema,
+        await response.json(),
+        'article.json',
+      );
       createdArticles.push(created.slug);
 
       await test.step('Check the redirect to the created article page and the data shown', async () => {

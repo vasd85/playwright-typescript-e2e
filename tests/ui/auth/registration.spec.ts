@@ -7,7 +7,15 @@ test.use({ storageState: NO_AUTH });
 
 test(
   'a new user signs up, logs out and logs in again',
-  { tag: '@tc-1' },
+  {
+    tag: '@tc-1',
+    annotation: [
+      { type: 'allure.label.epic', description: 'Authentication' },
+      { type: 'allure.label.feature', description: 'Registration' },
+      { type: 'allure.label.story', description: 'Sign up, sign out, sign in again' },
+      { type: 'allure.label.severity', description: 'blocker' },
+    ],
+  },
   async ({ registerPage, loginPage, settingsPage, header, gate, page }, testInfo) => {
     const user = buildUser(uniqueId(testInfo.parallelIndex));
 

@@ -8,7 +8,7 @@ const DEFAULTS = {
   CONTRACT_FAILURE_DEMO: false,
 };
 
-test.describe('environment schema', () => {
+test.describe('Environment schema', () => {
   test('defaults apply when variables are absent or empty', () => {
     expect(parseEnv({})).toEqual(DEFAULTS);
     expect(parseEnv({ BASE_URL: '', API_URL: '', CONTRACT_FAILURE_DEMO: '' })).toEqual(DEFAULTS);

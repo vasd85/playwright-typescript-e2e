@@ -56,6 +56,55 @@ export const test = base.extend<{ editor: EditorPage }, { appVersion: AppVersion
 5. **Детерминированные состояния загрузки и ошибок.** Критерий: у каждого асинхронного блока есть конечное состояние с идентификатором (`feed.loaded`, `feed.error`), по которому тест ждёт web-first ассертом.
 6. **Никаких сгенерированных идентификаторов** вроде `item-4f2a`. Критерий: проверка в CI из 1.2 не пропускает литерал, которого нет в реестре.
 
+## 2. Оптимизация жизненного цикла конфигурации
+
+### 2.1 Матрица проектов из переменных окружения
+
+Списки сред, версий приложения и браузеров приходят переменными `ENVS`, `APP_VERSIONS`, `BROWSERS` через запятую; их разбирает zod-схема модуля окружения с дефолтами `dev`, `next`, `chromium`, так что без единой переменной конфиг даёт одну комбинацию. Массив `projects` в `defineConfig<TestArgs, WorkerArgs>` (второй типовой параметр делает `appVersion` в `use` проверяемым компилятором; по типам 1.62.1) строится `flatMap` по трём спискам; setup-проект среды и её браузерные проекты разведены по `testDir`, и браузерные зависят от setup-проекта:
+
+```ts
+const projects = env.ENVS.flatMap((envName) => [
+  { name: `check:${envName}`, testDir: 'tests/setup', use: { baseURL: URLS[envName] } },
+  ...env.APP_VERSIONS.flatMap((appVersion) =>
+    env.BROWSERS.map((browser) => ({
+      name: `${envName}:${appVersion}:${browser}`,
+      testDir: 'tests/ui',
+      dependencies: [`check:${envName}`],
+      use: {
+        ...devices[DEVICES[browser]],
+        baseURL: URLS[envName],
+        appVersion,
+        testIdAttribute: appVersion === 'legacy' ? 'data-testid,data-qa' : 'data-testid',
+      },
+    })),
+  ),
+]);
+```
+
+Так `ENVS=dev,stage APP_VERSIONS=legacy,next BROWSERS=chromium,webkit` даёт два setup-проекта и восемь браузерных, а `--project=stage:next:chromium` запускает одну комбинацию вместе с её setup-проектом (по документации, <https://playwright.dev/docs/test-projects>).
+
+### 2.2 CI против локальной отладки
+
+Переключатель — `process.env.CI`; GitHub Actions выставляет её сам (по документации GitHub). В CI стенд либо отвечает, либо нет, и ждать нечего: `use.actionTimeout` и `use.navigationTimeout` по 10 с, `expect.timeout` 5 с, `timeout` 30 с, `maxFailures: 10`, `forbidOnly: true`, `globalTimeout` 15 мин; к этому зависимость от setup-проекта из 2.3 — упавший бэкенд даёт красный прогон за секунды с адресом и кодом ответа в отчёте. `retries: 0` на гейте внутренней среды: повтор маскирует нестабильный тест. Каркас этого репозитория ходит на общий публичный стенд, поэтому в его `playwright.config.ts` один повтор в CI оставлен против сетевых сбоев стенда; нестабильность повтор не прячет — тест, прошедший со второй попытки, отчёт помечает как `flaky` (по документации, <https://playwright.dev/docs/test-retries>).
+
+Локально флаг `--debug` уже разворачивается в `PWDEBUG=1` с нулевым таймаутом, одним воркером и видимым браузером (по исходникам пакета `playwright` 1.62.1, `lib/program.js`, и по документации, <https://playwright.dev/docs/debug>), дублировать это в конфиге не нужно. Дыра в другом: `--ui` переменную `PWDEBUG` не выставляет (по исходникам `cli/testActions.js` 1.62.1) и setup-проекты сам не запускает (по документации, <https://playwright.dev/docs/test-ui-mode>). Её закрывает собственная переменная `PW_LOCAL_DEBUG=1`: при ней `timeout: 0`, `expect.timeout: 0`, `actionTimeout: 0`, `workers: 1`, `trace: 'on'` — на точке останова можно сидеть сколько нужно, и трейс остаётся.
+
+### 2.3 Ловушка конфигурации: где валидировать секреты
+
+Механизм — зависимости проектов (`dependencies`), а не `globalSetup`. `globalSetup` выполняется в процессе раннера без фикстур, без трейса и без записи в отчёте (по документации, <https://playwright.dev/docs/test-global-setup-teardown>), поэтому падение на отсутствующем пароле админки останется строкой в консоли CI без артефактов. Setup-проект — обычный тест: у него есть `request`, трейс и запись в отчёте, а при его падении зависимые проекты не стартуют вовсе и в сводке прогона значатся как `did not run`.
+
+Сам `playwright.config.ts` не проверяет ни сеть, ни секреты. Он вычисляется в процессе раннера, при `--list` и в UI-режиме, а затем заново в каждом воркере: воркер импортирует файл конфига сам (по исходникам пакета `playwright` 1.62.1, `lib/common/index.js`); исключение на отсутствующем секрете сломало бы даже перечисление тестов и проекты, которым секрет не нужен. Поэтому схема окружения объявляет секреты необязательными, `ADMIN_PASSWORD: z.string().optional()`, а обязательными их делает setup-проект той среды, где они нужны:
+
+```ts
+test('Check the stage secrets and the backend', async ({ request }) => {
+  expect(env.ADMIN_PASSWORD, 'ADMIN_PASSWORD is required for stage').toBeDefined();
+  const response = await request.get('/api/health');
+  expect(response.status(), `GET ${response.url()} responded ${response.status()}`).toBe(200);
+});
+```
+
+Единственное, что роняет конфиг, — нарушенная форма матрицы: неизвестный браузер или пустой список сред падают до перечисления тестов с именем переменной в тексте ошибки. `globalSetup` остаётся для локальной уборки без сети. Так сделано в каркасе этого репозитория: `src/config/env.ts` разбирает схему при импорте и бросает только на некорректном значении; `tests/setup/env.setup.ts` делает один GET и падает с адресом и кодом ответа; в `playwright.config.ts` проект `chromium` объявляет `dependencies: ['setup']`, а `globalSetup` лишь чистит `allure-results`.
+
 ## 3. Внедрение
 
 Всё в этом разделе — о монорепозитории CMS, не об этом репозитории. Порядок: сначала `libs/test-ids` и `pages/components/`, затем реализации `pages/next/` по потокам с наибольшим трафиком — публикация, редактирование, комментарии. Правило «новые тесты только через `pages/contract/`» закрепляется линтером: `no-restricted-imports` запрещает файлам из `tests/**` импортировать `pages/legacy/**` и `pages/next/**`. Шаблоны page object и спеки лежат в `apps/cms-e2e/templates/`, чек-лист код-ревью тестов — в шаблоне pull request репозитория. Проект `cms-e2e` связан с обоими приложениями через `implicitDependencies` в `project.json`, цели `e2e` и `e2e-ci` выводит плагин `@nx/playwright/plugin`, и `nx affected -t e2e` в CI запускает его при изменении любого из приложений (по документации Nx, <https://nx.dev/docs/technologies/test-tools/playwright/introduction>). От бэкенда нужен API тестовых данных: `POST /test-data` создаёт набор под идентификатор прогона, `DELETE /test-data/{runId}` убирает его в teardown, и тест не готовит данные через UI. Метрика миграции считается из JSON-отчёта (`reporter: 'json'`) по полям `projectName` и `status` каждого теста (по типам репортера 1.62.1): доля сценариев со статусом `expected` в проектах обеих версий; цель — все совпадающие сценарии, а каждый расходящийся помечен `test.skip` с причиной.

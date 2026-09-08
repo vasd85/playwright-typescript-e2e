@@ -11,7 +11,7 @@ import { uniqueId } from '../../../src/data/unique';
 import { expectContract } from '../../../src/reporting/contract';
 import { test, expect } from '../../../src/fixtures';
 
-/** Exact URL and method: a substring would also catch the feed, the comments and the favourites. */
+/** Compared in full: `/articles` also begins the feed, the comments and the favourites. */
 const isArticleCreation = (response: Response): boolean =>
   response.url() === apiUrl('articles') && response.request().method() === 'POST';
 
@@ -28,7 +28,6 @@ const ALL_FIELDS_BLANK = [
   "body can't be blank",
 ];
 
-/** The stand decides in which order it reports the fields, so the messages are compared as a set. */
 const expectMessages = (messages: Locator, expected: string[]): Promise<void> =>
   expect
     .poll(async () => (await messages.allTextContents()).map((text) => text.trim()).sort(), {
@@ -135,23 +134,20 @@ test.describe(
 
       await test.step('Validate the response body from the server', async () => {
         expect(response.status(), 'POST /api/articles creates the article').toBe(201);
-        // The shape first, reported as a business problem; then the values it carries.
         await expectContract(ArticleSchema, created, {
           subject: 'Article',
           step: 'Check that the created article matches its contract',
           snapshot: 'article.json',
         });
-        const published = ArticleSchema.parse(created);
-        expect(published.title, 'the stand stored the title that was typed').toBe(article.title);
-        expect(published.description, 'the stand stored the description that was typed').toBe(
+        expect(created.title, 'the stand stored the title that was typed').toBe(article.title);
+        expect(created.description, 'the stand stored the description that was typed').toBe(
           article.description,
         );
-        expect(published.body, 'the stand stored the body that was typed').toBe(article.body);
-        // The stand decides the order of the tags, so they are compared as a set.
-        expect([...published.tagList].sort(), 'the stand stored the tags that were typed').toEqual(
+        expect(created.body, 'the stand stored the body that was typed').toBe(article.body);
+        expect([...created.tagList].sort(), 'the stand stored the tags that were typed').toEqual(
           [...article.tagList].sort(),
         );
-        expect(published.author.username, 'the article belongs to its author').toBe(
+        expect(created.author.username, 'the article belongs to its author').toBe(
           workerAuth.username,
         );
       });

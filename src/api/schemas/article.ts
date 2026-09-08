@@ -24,14 +24,17 @@ export const NewArticleSchema = z.object({
 export const ArticleRequestSchema = z.object({ article: NewArticleSchema });
 
 /**
- * Turns a parsed response body into typed values without a cast, and deliberately stops there:
- * both tests hand the article on to `expectContract`, so a schema that rejected a corrupted body
- * here would leave the helper nothing to report.
+ * What the wire may carry, as opposed to `ArticleSchema`, which says what the contract requires.
+ * A null body parses here and fails there, which is the whole of the fourth case: the response
+ * has to reach `expectContract` intact for the helper to report the violation itself.
  */
 export const ArticleEnvelopeSchema = z.object({
   article: z.looseObject({
     slug: z.string(),
     title: z.string(),
+    description: z.string(),
+    body: z.string().nullable(),
+    tagList: z.array(z.string()),
     author: z.looseObject({ username: z.string() }),
   }),
 });

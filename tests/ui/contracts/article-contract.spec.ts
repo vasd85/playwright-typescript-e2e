@@ -104,19 +104,19 @@ test.describe(
         ],
       },
       async ({ page, articlePage }) => {
-        const response =
-          await test.step('Emulate a corrupted article JSON where body is null', async () => {
-            await mockCorruptedArticle(page);
-            const article = page.waitForResponse(isArticleRequest);
-            await articlePage.goto(corrupted.slug);
-            return article;
-          });
-
-        await test.step('Open the article page', async () => {
-          await expect(articlePage.title).toHaveText(corrupted.title);
+        await test.step('Emulate a corrupted article JSON where body is null', async () => {
+          await mockCorruptedArticle(page);
         });
 
-        // The object the UI was served, not the file: that is what the check is about.
+        const response = await test.step('Open the article page', async () => {
+          const served = page.waitForResponse(isArticleRequest);
+          await articlePage.goto(corrupted.slug);
+          await expect(articlePage.title).toHaveText(corrupted.title);
+          return served;
+        });
+
+        // Taken from the response the page received, not from the file: reading the file back
+        // would compare a constant with a schema and prove nothing about the mock.
         const { article } = ArticleEnvelopeSchema.parse(await response.json());
 
         await expectContract(ArticleSchema, article, {

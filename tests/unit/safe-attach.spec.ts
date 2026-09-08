@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { attachJson } from '../../src/reporting/safe-attach';
+import { attachJson, maskSecrets } from '../../src/reporting/safe-attach';
 
 // A response of the stand in the shape the API layer returns it: the token is the field
 // that must never reach a report artifact.
@@ -28,5 +28,13 @@ test.describe('safe attachments', () => {
     // Documented limit of collectSecrets: values under eight characters are not secrets,
     // otherwise every short word in a body would be masked.
     expect(lastAttachmentBody()).toContain('"token": "abc"');
+  });
+
+  test('masks a token in an assertion message', () => {
+    // The message of a failed check reaches the terminal, the json report and the allure
+    // result; none of those is rewritten by the trace redaction of global teardown.
+    const message = `Article contract violated: field "user" is required, received {"token":"${TOKEN}"}`;
+    expect(maskSecrets(message)).toContain('"token":"***"');
+    expect(maskSecrets(message)).not.toContain(TOKEN);
   });
 });

@@ -1,4 +1,4 @@
-import type { Page, Response } from '@playwright/test';
+import type { Locator, Page, Response } from '@playwright/test';
 import { apiUrl } from '../../../src/api/client';
 import {
   ArticleEnvelopeSchema,
@@ -22,13 +22,19 @@ const submitAndCatchResponse = (page: Page, submit: () => Promise<void>): Promis
     return response;
   });
 
-// The order of the messages follows the order of the fields in the response body; both were
-// measured on this stand.
 const ALL_FIELDS_BLANK = [
   "title can't be blank",
   "description can't be blank",
   "body can't be blank",
 ];
+
+/** The stand decides in which order it reports the fields, so the messages are compared as a set. */
+const expectMessages = (messages: Locator, expected: string[]): Promise<void> =>
+  expect
+    .poll(async () => (await messages.allTextContents()).map((text) => text.trim()).sort(), {
+      message: 'the form reports exactly the empty fields',
+    })
+    .toEqual([...expected].sort());
 
 test.describe(
   'Article editor',
@@ -65,7 +71,7 @@ test.describe(
       });
 
       await test.step('Check the errors shown in the form', async () => {
-        await expect(errorMessages.messages).toHaveText(ALL_FIELDS_BLANK);
+        await expectMessages(errorMessages.messages, ALL_FIELDS_BLANK);
       });
     });
 
@@ -97,7 +103,7 @@ test.describe(
       });
 
       await test.step('Check that only the empty fields are reported in the form', async () => {
-        await expect(errorMessages.messages).toHaveText([
+        await expectMessages(errorMessages.messages, [
           "description can't be blank",
           "body can't be blank",
         ]);
@@ -192,7 +198,7 @@ test.describe(
 
       await test.step('Check the errors shown in the form', async () => {
         expect(rejected.status(), 'POST /api/articles rejects an empty article').toBe(422);
-        await expect(errorMessages.messages).toHaveText(ALL_FIELDS_BLANK);
+        await expectMessages(errorMessages.messages, ALL_FIELDS_BLANK);
       });
 
       await test.step('Fill the form: Title, Description, Body, Tags', async () => {

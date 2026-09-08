@@ -1,8 +1,8 @@
 import type { Locator } from '@playwright/test';
 import { BasePage } from './base.page';
 
-// The application carries no test ids, so this page is addressed through the RealWorld
-// selector contract. Every class-based locator below is scoped to its own container.
+// The application carries no test ids, so the class-based locators below are what the markup
+// gives us; each one is scoped to its own container.
 export class ArticlePage extends BasePage {
   private readonly banner: Locator = this.page.locator('.banner');
   /** Scoped to the banner: the home page has a heading of its own. */

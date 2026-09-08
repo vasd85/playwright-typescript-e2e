@@ -21,13 +21,12 @@ export const NewArticleSchema = z.object({
   tagList: z.array(z.string()),
 });
 
-/** What the editor sends, so a test reads the request body typed instead of casting it. */
 export const ArticleRequestSchema = z.object({ article: NewArticleSchema });
 
 /**
- * The response envelope, checking only the fields a test addresses by name. `body` is left out
- * on purpose: the contract helper receives the article as it arrived, and on a fully checked
- * envelope a violation would read `field "article.body"` instead of `field "body"`.
+ * Turns a parsed response body into typed values without a cast, and deliberately stops there:
+ * both tests hand the article on to `expectContract`, so a schema that rejected a corrupted body
+ * here would leave the helper nothing to report.
  */
 export const ArticleEnvelopeSchema = z.object({
   article: z.looseObject({

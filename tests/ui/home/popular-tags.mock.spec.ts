@@ -69,6 +69,8 @@ test.describe(
         await expect(popularTags.tags).toHaveText(MOCKED_TAGS);
       });
 
+      // Choosing a tag opens its own feed: the application adds a third tab named after the tag
+      // and makes it the active one.
       await test.step('Click a mocked tag and check the feed it opens', async () => {
         await popularTags.tag(CLICKED_TAG).click();
         await expect(page).toHaveURL(`/tag/${CLICKED_TAG}`);

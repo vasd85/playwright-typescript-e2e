@@ -2,7 +2,7 @@ import type { Locator, Page } from '@playwright/test';
 
 /** The validation summary the application shows above a rejected form. */
 export class ErrorMessagesComponent {
-  // Part of the RealWorld selector contract; the application offers no test id for this list.
+  // The application offers no test id for this list; the class is what the markup gives us.
   readonly messages: Locator;
 
   constructor(page: Page) {

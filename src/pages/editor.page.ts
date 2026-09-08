@@ -13,10 +13,7 @@ export class EditorPage extends BasePage {
   });
   readonly tagsInput: Locator = this.page.getByRole('textbox', { name: 'Enter tags' });
   readonly publishButton: Locator = this.page.getByRole('button', { name: 'Publish Article' });
-  /**
-   * Tags already accepted. The class of a tag list is shared with the home page and the article
-   * page, and the application offers no test id, so the locator is scoped to the editor form.
-   */
+  // The tag list class is not unique in this application, so the locator stays inside the form.
   private readonly tagPills: Locator = this.page.locator('form .tag-list span.tag-pill');
 
   async goto(): Promise<void> {

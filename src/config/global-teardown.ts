@@ -3,13 +3,18 @@ import path from 'node:path';
 import type { FullConfig } from '@playwright/test';
 import { SessionFileSchema } from '../api/schemas/user';
 import { collectSecrets, redactTextFile, redactTraceZip } from '../reporting/redact-trace';
+import { ALLURE_RESULTS_DIR } from './global-setup';
+
+/** Extensions of the allure result files that hold text and may quote a credential. */
+const ALLURE_TEXT_EXTENSIONS = new Set(['.md', '.json', '.txt']);
 
 /**
  * Runs once after all tests, before the reporters write their output: every failure trace
- * and aria snapshot under the output directories loses the credentials it recorded. The
- * worker session files provide the tokens to look for; the traces themselves provide the rest.
- * An archive that cannot be rewritten is removed rather than left behind: the CI artifact is
- * uploaded even after a failed run.
+ * and aria snapshot loses the credentials it recorded, both under the output directories of
+ * the projects and in the copies the allure reporter has already made. The worker session
+ * files provide the tokens to look for; the traces themselves provide the rest. An archive
+ * that cannot be rewritten is removed rather than left behind: the CI artifact is uploaded
+ * even after a failed run.
  */
 export default function globalTeardown(config: FullConfig): void {
   const outputDirs = [...new Set(config.projects.map((project) => project.outputDir))];
@@ -28,6 +33,18 @@ export default function globalTeardown(config: FullConfig): void {
     }
   }
 
+  // The allure reporter copies every attachment into its own flat directory while the run
+  // is still going, so its copy of a trace is the one taken before this teardown rewrites
+  // the original. Measured on a failed TC1: nine credentials in the copy, none left in the
+  // original. The copies are redacted here as well, or the CI artifact would publish them.
+  if (existsSync(ALLURE_RESULTS_DIR)) {
+    for (const name of readdirSync(ALLURE_RESULTS_DIR)) {
+      const file = path.join(ALLURE_RESULTS_DIR, name);
+      if (name.endsWith('.zip')) traces.push(file);
+      else if (ALLURE_TEXT_EXTENSIONS.has(path.extname(name))) contexts.push(file);
+    }
+  }
+
   const secrets = collectSecrets([], known);
   const failures: string[] = [];
   let replacements = 0;
@@ -43,7 +60,7 @@ export default function globalTeardown(config: FullConfig): void {
   for (const context of contexts) replacements += redactTextFile(context, secrets);
 
   console.log(
-    `[redact] ${traces.length} trace(s), ${contexts.length} context file(s), ${replacements} replacement(s)`,
+    `[redact] ${traces.length} archive(s), ${contexts.length} text file(s), ${replacements} replacement(s)`,
   );
   if (failures.length > 0) {
     throw new Error(`Trace redaction failed, the archives were removed: ${failures.join(', ')}`);

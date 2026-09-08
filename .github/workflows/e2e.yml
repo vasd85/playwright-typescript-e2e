@@ -48,5 +48,6 @@ jobs:
           path: |
             playwright-report
             test-results
+            allure-results
             !test-results/.auth/**
           retention-days: 7

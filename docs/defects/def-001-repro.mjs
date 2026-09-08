@@ -13,6 +13,11 @@ const DEFAULT_API = 'https://api.realworld.show/api';
 // The stand is public and shared. Four is the ceiling this project allows per burst.
 const MAX_REGISTRATIONS = 4;
 const SPREAD_MS = 1000;
+// An identity is only worth trusting once the registration second is over by the stand's own
+// clock: until then another registration can still take the shared token over. One second for
+// that second to end, one more because the Date header of the stand may lag behind its clock.
+const SECONDS_AFTER_REGISTRATION = 2;
+const BOUNDARY_DEADLINE_MS = 10_000;
 
 /** The measurement never took place: the stand answered something we cannot interpret. */
 class MeasurementFailed extends Error {}
@@ -22,6 +27,16 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 /** Masks a token down to the form the reports of this project use: token_9b3d…2b2e. */
 function mask(token) {
   return `${token.slice(0, 10)}…${token.slice(-4)}`;
+}
+
+/** The second the stand itself puts on a response. Our own clock is not the authority here. */
+function serverSecond(response) {
+  const date = response.headers.get('date');
+  const parsed = date ? Date.parse(date) : Number.NaN;
+  if (Number.isNaN(parsed)) {
+    throw new MeasurementFailed('the stand answered without a usable Date header');
+  }
+  return Math.floor(parsed / 1000);
 }
 
 /** Registers one account. The request carries no Authorization header on purpose: sending
@@ -41,12 +56,13 @@ async function register(api, username, password) {
   if (response.status !== 201) {
     throw new MeasurementFailed(`POST /users for ${username} answered ${response.status}`);
   }
+  const second = serverSecond(response);
   const payload = await response.json();
   const token = payload?.user?.token;
   if (typeof token !== 'string' || token.length === 0) {
     throw new MeasurementFailed(`POST /users for ${username} returned no token`);
   }
-  return { username, token };
+  return { username, token, second };
 }
 
 /** The username the stand resolves a token to. A dead token (401) is a failed measurement,
@@ -61,19 +77,38 @@ async function whoami(api, token) {
   if (response.status !== 200) {
     throw new MeasurementFailed(`GET /user answered ${response.status}`);
   }
+  const second = serverSecond(response);
   const payload = await response.json();
   const name = payload?.user?.username;
   if (typeof name !== 'string' || name.length === 0) {
     throw new MeasurementFailed('GET /user returned no username');
   }
-  return name;
+  return { name, second };
+}
+
+/**
+ * Asks who the token belongs to, but only accepts an answer the stand dates past the
+ * registration second. Without this an `OK` would prove nothing: the binding can still change
+ * while the second the token was built from is running.
+ */
+async function whoamiAfter(api, token, boundary) {
+  const deadline = Date.now() + BOUNDARY_DEADLINE_MS;
+  for (;;) {
+    const answer = await whoami(api, token);
+    if (answer.second >= boundary) return answer.name;
+    if (Date.now() > deadline) {
+      throw new MeasurementFailed(`the clock of the stand did not reach second ${boundary}`);
+    }
+    await sleep(300);
+  }
 }
 
 /**
  * Registers `n` accounts, then asks who each token belongs to.
- * The identities are checked only after every registration is done: the stand rebinds a
- * shared token to whoever registered last, so checking right after each registration would
- * let the first one pass before the collision happens.
+ * Identities are checked after every registration is done and after the last registration
+ * second has passed by the stand's clock: the stand rebinds a shared token to whoever
+ * registered last, so an earlier answer could show a collision that has not happened yet —
+ * or miss one that still can.
  */
 async function burst(api, n, spreadMs, password) {
   const stamp = Math.floor(Date.now() / 1000);
@@ -91,9 +126,11 @@ async function burst(api, n, spreadMs, password) {
     }
   }
 
+  const boundary = Math.max(...registered.map((r) => r.second)) + SECONDS_AFTER_REGISTRATION;
   const rows = [];
   for (const { username, token } of registered) {
-    rows.push({ username, token, resolved: await whoami(api, token) });
+    // The first call waits the boundary out; by the time it returns, the rest are past it too.
+    rows.push({ username, token, resolved: await whoamiAfter(api, token, boundary) });
   }
   return rows;
 }
@@ -107,8 +144,6 @@ function report(label, rows, requested) {
       `POST /users -> 201 username=${username} token=${mask(token)} whoami=${resolved} ${verdict}`,
     );
   }
-  // The denominator counts the registrations asked for, not the ones that came back: a
-  // smaller denominator would turn rejected registrations into a clean "no collision".
   console.log(`unique tokens: ${new Set(rows.map((r) => r.token)).size} of ${requested}`);
   return rows.every(({ username, resolved }) => resolved === username);
 }

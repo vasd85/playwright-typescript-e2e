@@ -51,32 +51,3 @@ jobs:
             allure-results
             !test-results/.auth/**
           retention-days: 7
-
-  # Shows what a caught defect looks like. The demo command is expected to be red, so the run
-  # itself may not decide the job: the gate below does, by checking that exactly the registered
-  # test failed and with its business message.
-  failure-demo:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 24
-          cache: npm
-      - run: npm ci
-      - run: npx playwright install --with-deps chromium
-      - run: npm run test:failure-demo
-        continue-on-error: true
-      - run: node scripts/check-expected-red.mjs test-results/report.json
-      - uses: actions/upload-artifact@v7
-        if: ${{ !cancelled() }}
-        with:
-          # A name of its own: two jobs uploading under one name collide.
-          name: failure-demo-report
-          path: |
-            playwright-report
-            test-results
-            allure-results
-            !test-results/.auth/**
-          retention-days: 7

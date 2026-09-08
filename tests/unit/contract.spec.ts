@@ -34,8 +34,8 @@ test.describe('Article contract check', () => {
   });
 
   test('fails with a message that names the field and the value it got', async () => {
-    // The CI gate of the failure demo matches on the beginning of this message and the README
-    // quotes it, so the wording is pinned here rather than only in the task case.
+    // The README quotes this message and the assignment asks for it by name, so the wording is
+    // pinned here rather than only in the test case that demonstrates it.
     const error = await expectContract(ArticleSchema, BROKEN, {
       subject: 'Article',
       step: 'Check that the article body is not null',

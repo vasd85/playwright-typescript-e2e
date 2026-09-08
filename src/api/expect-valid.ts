@@ -5,8 +5,8 @@ import { attachJson, maskSecrets } from '../reporting/safe-attach';
  * Parses a value against its schema and returns it typed. On a mismatch it attaches the value
  * and the violations to the report, then throws with the wording zod itself produced.
  *
- * Test code only: the attachments go through `test.info()`, which throws outside a running test.
- * Never call this from a worker-scoped fixture or from global setup.
+ * Outside a running test the value is still validated and the error still thrown; only the
+ * attachments are skipped, because there is no report to put them in.
  */
 export async function expectValid<T>(
   schema: ZodType<T>,

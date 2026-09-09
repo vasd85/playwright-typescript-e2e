@@ -47,7 +47,10 @@ test.describe(
         username: freshRegistration.user.username,
       };
 
-      // Sent from the session of that account: anonymously the name would be free (see registerUser).
+      // Sent from the session of that account, not from a fresh context, which would look like the
+      // franker check but would test nothing here: an anonymous registration opens a new session
+      // of its own, where the name is free - measured, the stand answers 201. The header is safe
+      // because the request is refused: a refusal issues no token, so nothing is rebound.
       const response = await test.step('Register the same username again', () =>
         registerUser(apiAsFreshUser, taken));
 
@@ -102,7 +105,7 @@ test.describe(
 
     // The worker user is the one account whose password this suite does not know, which is exactly
     // what a wrong-password case needs. A refusal issues no token, so its session stays untouched.
-    test('refuses a wrong password', async ({ workerAuth, request }) => {
+    test('refuses a sign-in with the wrong password', async ({ workerAuth, request }) => {
       const response = await test.step('Sign in with a password that is not the one', () =>
         loginUser(request, { email: workerAuth.email, password: 'not-the-stored-one' }));
 

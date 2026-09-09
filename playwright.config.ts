@@ -59,8 +59,12 @@ export default defineConfig({
     // `chromium` is a scheduling dependency, not a data one: a later phase keeps these tests out of
     // the seconds in which the browser registration scenario issues its tokens, where sharing a
     // second hands both the same token. The cost, measured: a red browser test skips this project.
-    // The timeout is the project's own - registering a disposable account waits out two seconds of
-    // the stand's clock, and that time lands inside the first test of the worker.
+    // 60 s, not the global 30: registering a disposable account can spend up to 4 s waiting for the
+    // second reserved for the slot and up to 8 s for the stand's clock to pass it, and it retries a
+    // collision up to three times - about 37 s of ceiling, against 9 s observed at worst. The
+    // registration happens inside a test, so its ceiling is the test's. Under --no-deps the worker
+    // session registers too and the two ceilings add up; that case ends in a plain timeout, which
+    // is the honest outcome for a stand colliding six times in a row.
     {
       name: 'api',
       testDir: 'tests/api',

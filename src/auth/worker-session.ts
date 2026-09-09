@@ -119,6 +119,10 @@ export async function staggerToSlotSecond(slot: number, workers: number): Promis
  *
  * The response is returned alive: its body stays readable only while the request context lives,
  * so the caller must not dispose the context before whoever reads it is done.
+ *
+ * `label` is composed by the caller and not here, because the three callers print three different
+ * shapes, and two of them are what README points at as the proof of one authorization per worker:
+ * `setup slot=<n>` and `slot=<n> worker=<m>`. A single rule here could not reproduce both.
  */
 export async function registerVerifiedAccount(
   api: APIRequestContext,

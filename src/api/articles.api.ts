@@ -16,8 +16,10 @@ export function createArticle(
 }
 
 /**
- * Reads one article. Which context asks decides which universe answers: the stand keeps a
- * separate session per token, so an anonymous read never finds an article a worker created.
+ * Reads one article. Articles are public in the RealWorld specification, but not on this stand:
+ * a request without a token opens a fresh session of its own, so the article a worker created is
+ * simply not there. Measured: the author reads it with 200, an anonymous request gets 404.
+ * Which context asks therefore decides which universe answers.
  */
 export function getArticle(request: APIRequestContext, slug: string): Promise<APIResponse> {
   return request.get(apiUrl(`articles/${slug}`));

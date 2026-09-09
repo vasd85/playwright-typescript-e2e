@@ -7,6 +7,8 @@ import { registerVerified, sessionPath, writeSession } from '../../src/auth/work
 // a second share a token. Registering before the tests, one after another, keeps the workers
 // apart from each other and from the sign-up and login the registration scenario performs
 // through the UI. A browser worker then only reuses the session of its slot.
+// The budget below is per slot registered here in sequence and without the slot stagger, so it is
+// not the ceiling of a single staggered registration that the `api` project times out against.
 setup('Register one disposable user per worker slot', async ({ request }, testInfo) => {
   const workers = testInfo.config.workers;
   testInfo.setTimeout(workers * 10_000 + 10_000);

@@ -10,8 +10,8 @@ type Gate = {
 
 type GateFixture = {
   /**
-   * Holds every POST to that API path until `release` is called; after that, matching
-   * requests pass through immediately. POST is the only method this suite gates.
+   * Holds the request until `release` is called; after that, matching requests pass through
+   * immediately. The method is checked in the handler because routes match by URL alone.
    */
   hold: (method: 'POST', apiPath: string) => Promise<Gate>;
 };

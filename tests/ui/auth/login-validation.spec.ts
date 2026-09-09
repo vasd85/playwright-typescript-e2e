@@ -35,13 +35,13 @@ test.describe(
       const response = await test.step('Intercept POST **/api/users/login', () =>
         waitForApiResponse(page, 'POST', 'users/login', () => loginPage.login(stranger)));
 
-      await test.step('Validate the response body from the server', async () => {
+      await test.step('Validate the rejection response body', async () => {
         expect(response.status(), 'the stand rejects unknown credentials').toBe(401);
         const { errors } = ValidationErrorSchema.parse(await response.json());
         expect(Object.keys(errors), 'the rejection names the credentials').toEqual(['credentials']);
       });
 
-      await test.step('Check the error shown in the form', async () => {
+      await test.step('Check the errors shown in the form', async () => {
         await expect(errorMessages.messages).toHaveText(['credentials invalid']);
         await expect(page).toHaveURL('/login');
       });

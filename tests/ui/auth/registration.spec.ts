@@ -5,6 +5,12 @@ import { test, expect, NO_AUTH } from '../../../src/fixtures';
 // The registration form needs a signed-out browser: this file opts out of the worker session.
 test.use({ storageState: NO_AUTH });
 
+// One retry against the token collision of the stand (docs/defects/DEF-001-token-collision.md):
+// every other registration answers a collision by verifying the identity and registering again,
+// while this scenario cannot - signing up once through the form is what it tests. Measured: this
+// value wins over --retries 0 on the command line, and it covers every test added to this file.
+test.describe.configure({ retries: 1 });
+
 test(
   'a new user signs up, logs out and logs in again',
   {
@@ -48,7 +54,10 @@ test(
 
     await test.step('Log out through Settings and check that the user is signed out', async () => {
       await header.settingsLink.click();
-      await expect(settingsPage.usernameInput).toHaveValue(user.username);
+      await expect(
+        settingsPage.usernameInput,
+        'the settings form is filled by the server: another name here means the stand rebound our token to someone else (DEF-001), not that the form is broken',
+      ).toHaveValue(user.username);
       await expect(settingsPage.emailInput).toHaveValue(user.email);
       await settingsPage.logout();
       await header.expectSignedOut();
@@ -60,7 +69,10 @@ test(
       await expect(page).toHaveURL('/');
       await header.expectSignedInAs(user.username);
       await settingsPage.goto();
-      await expect(settingsPage.usernameInput).toHaveValue(user.username);
+      await expect(
+        settingsPage.usernameInput,
+        'the settings form is filled by the server: another name here means the stand rebound our token to someone else (DEF-001), not that the form is broken',
+      ).toHaveValue(user.username);
     });
   },
 );

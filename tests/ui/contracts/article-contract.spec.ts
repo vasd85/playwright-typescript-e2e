@@ -66,20 +66,22 @@ test.describe(
         await expect(articlePage.title).toHaveText(corrupted.title);
       });
 
-      // This waits for the markdown renderer to have run and refused, which is what makes the
-      // checks below meaningful: an empty body would otherwise also describe a page that has
-      // simply not painted yet. The error itself is the one trace the corruption leaves, and
-      // no user ever sees it.
+      // Waiting for the renderer to have run and refused is what makes the checks below
+      // meaningful: an empty body also describes a page that has simply not painted yet.
       await test.step('Check that the only trace is a console error', async () => {
         await expect
           .poll(() => consoleErrors.join('\n'), { message: 'the console reports the corruption' })
+          // Verbatim wording of the markdown renderer on the stand: its upgrade reddens this
+          // test with no defect of the application behind it.
           .toContain('marked(): input parameter is undefined or null');
       });
 
       await test.step('Check that nothing on the page reveals the corruption', async () => {
         await expect(articlePage.authorLink(corrupted.author.username)).toBeVisible();
         await expect(articlePage.body).toBeEmpty();
-        await expect(articlePage.nullText).toHaveCount(0);
+        await expect(articlePage.content, 'the article body shows no stray null').not.toContainText(
+          'null',
+        );
         expect(pageErrors, 'the corruption did not crash the page').toEqual([]);
       });
     });

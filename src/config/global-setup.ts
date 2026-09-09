@@ -7,12 +7,26 @@ export const ALLURE_RESULTS_DIR = 'allure-results';
 /** File under the output directory where the article cleanup records what it could not delete. */
 export const LEAK_LOG_NAME = 'leaked-articles.log';
 
+/**
+ * Empties a directory, creating it when it is missing. The entries go, the directory stays: under
+ * docker compose it is a bind mount, and removing a mount point fails with EBUSY.
+ */
+export function clearDirectory(dir: string): void {
+  try {
+    mkdirSync(dir, { recursive: true });
+    for (const entry of readdirSync(dir)) {
+      rmSync(path.join(dir, entry), { recursive: true, force: true });
+    }
+  } catch (cause) {
+    throw new Error(
+      `Cannot empty the directory "${dir}". In a container it is mounted from the host, and the ` +
+        `host may own it as another user; run the service with --user "$(id -u):$(id -g)".`,
+      { cause },
+    );
+  }
+}
+
 /** The allure reporter creates its results directory but never clears it, so runs would pile up. */
 export default function globalSetup(): void {
-  // The entries rather than the directory itself: under docker compose this directory is a mount
-  // point, and removing one fails with EBUSY. Playwright clears its own output directory the same way.
-  mkdirSync(ALLURE_RESULTS_DIR, { recursive: true });
-  for (const entry of readdirSync(ALLURE_RESULTS_DIR)) {
-    rmSync(path.join(ALLURE_RESULTS_DIR, entry), { recursive: true, force: true });
-  }
+  clearDirectory(ALLURE_RESULTS_DIR);
 }

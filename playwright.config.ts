@@ -56,6 +56,19 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
       dependencies: ['setup'],
     },
+    // `chromium` is a scheduling dependency, not a data one: the runner starts a project only once
+    // every dependency finished, which keeps these tests out of the seconds in which the browser
+    // registration scenario issues its tokens. Sharing a second there would hand both the same
+    // token and silently move one of them into the other's session.
+    // The timeout is the project's own: registering a disposable account waits for the second
+    // reserved for the slot and then for the stand's clock to pass it, and a worker fixture spends
+    // that time inside the first test of the worker.
+    {
+      name: 'api',
+      testDir: 'tests/api',
+      dependencies: ['setup', 'chromium'],
+      timeout: 60_000,
+    },
     // Checks of the framework itself: no browser and no stand, so they run even when the stand is down.
     // Deterministic by construction, hence no retries even in CI.
     { name: 'unit', testDir: 'tests/unit', retries: 0 },

@@ -6,10 +6,12 @@ services:
     # command line. Chromium needs more shared memory than a container gets by default.
     init: true
     ipc: host
-    # Passed through only when set on the host; the suite defaults to the public demo without them.
+    # Passed through only when set on the host or in .env; without them the suite runs against the
+    # public demo in its normal mode, exactly as it does outside a container.
     environment:
       - BASE_URL
       - API_URL
+      - CONTRACT_FAILURE_DEMO
     volumes:
       - ./test-results:/app/test-results
       - ./playwright-report:/app/playwright-report

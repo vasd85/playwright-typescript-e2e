@@ -13,7 +13,7 @@ if (existsSync(ENV_FILE)) {
 // `KEY=` in a .env file yields an empty string, not an absence; both mean "use the default".
 const emptyToUndefined = (value: unknown) => (value === '' ? undefined : value);
 
-export const envSchema = z.object({
+const envSchema = z.object({
   BASE_URL: z.preprocess(emptyToUndefined, z.url().default('https://demo.realworld.show')),
   API_URL: z.preprocess(emptyToUndefined, z.url().default('https://api.realworld.show/api')),
   // Failure-demo mode of the article contract check (TC4): enabled by the value "1" only.

@@ -1,7 +1,7 @@
 import { readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate';
 
-export const MASK = '***';
+const MASK = '***';
 const MIN_SECRET_LENGTH = 8;
 
 /**

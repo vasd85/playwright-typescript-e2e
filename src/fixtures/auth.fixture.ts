@@ -10,7 +10,7 @@ import {
   type StorageState,
 } from '../auth/worker-session';
 
-export type WorkerSession = SessionFile & {
+type WorkerSession = SessionFile & {
   slot: number;
   workerIndex: number;
   outcome: 'registered' | 'reused' | 're-registered';

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 /** The `user` object returned by `POST /users`, `POST /users/login` and `GET /user`. */
-export const UserSchema = z.object({
+const UserSchema = z.object({
   username: z.string(),
   email: z.string(),
   token: z.string(),
@@ -23,8 +23,6 @@ export const AuthUserResponseSchema = z.object({
 
 /** What a worker keeps on disk between restarts: the identity and the token, never the password. */
 export const SessionFileSchema = UserSchema.pick({ username: true, email: true, token: true });
-
-export type User = z.infer<typeof UserSchema>;
 export type SessionFile = z.infer<typeof SessionFileSchema>;
 
 /** Credentials of an account to register. */

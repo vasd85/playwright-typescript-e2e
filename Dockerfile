@@ -4,8 +4,9 @@ FROM mcr.microsoft.com/playwright:v1.62.1-noble
 
 WORKDIR /app
 
-# Dependencies in a layer of their own, so editing a test does not reinstall them.
-COPY package.json package-lock.json .npmrc ./
+# Dependencies in a layer of their own, so editing a test does not reinstall them. `.npmrc` is
+# deliberately not copied: `npm ci` does not read it, and it is the usual home of a registry token.
+COPY package.json package-lock.json ./
 RUN npm ci
 
 # Listed one by one instead of `COPY . .`: the image then cannot absorb whatever else happens to

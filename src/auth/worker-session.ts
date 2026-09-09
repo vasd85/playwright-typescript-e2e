@@ -15,7 +15,7 @@ import { buildUser } from '../data/user.builder';
 
 export type StorageState = NonNullable<PlaywrightTestOptions['storageState']>;
 
-export const ATTEMPTS = 3;
+const ATTEMPTS = 3;
 
 /**
  * A registered account with everything the caller may need: the credentials it was built from,
@@ -62,7 +62,7 @@ export async function whoAmI(api: APIRequestContext, token: string): Promise<str
 }
 
 /** The second of the stand's clock at which it sent the response, from the `Date` header. */
-export function serverSecond(response: APIResponse): number {
+function serverSecond(response: APIResponse): number {
   const date = Date.parse(response.headers()['date'] ?? '');
   if (Number.isNaN(date)) throw new Error('The stand answered without a Date header');
   return Math.floor(date / 1000);
@@ -100,7 +100,7 @@ async function whoAmIAfter(
  * Waits for the next second whose epoch value is congruent to the slot modulo the number of
  * workers, so that workers registering at the same time land in seconds of their own.
  */
-export async function staggerToSlotSecond(slot: number, workers: number): Promise<void> {
+async function staggerToSlotSecond(slot: number, workers: number): Promise<void> {
   const period = workers * 1000;
   const wait = (slot * 1000 - (Date.now() % period) + period) % period;
   await sleep(wait);

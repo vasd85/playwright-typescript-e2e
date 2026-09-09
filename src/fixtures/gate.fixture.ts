@@ -1,24 +1,22 @@
 import { test as base, type Route } from '@playwright/test';
 import { apiUrl } from '../api/client';
 
-type Method = 'GET' | 'POST' | 'PUT' | 'DELETE';
-
-export type Gate = {
+type Gate = {
   /** Settles once the request is intercepted and held; rejects when no such request arrives in time. */
   held: Promise<void>;
   /** Lets the held request reach the stand. Safe to call more than once. */
   release: () => void;
 };
 
-export type GateFixture = {
+type GateFixture = {
   /**
-   * Holds every request of that method to that API path until `release` is called;
-   * after that, matching requests pass through immediately.
+   * Holds every POST to that API path until `release` is called; after that, matching
+   * requests pass through immediately. POST is the only method this suite gates.
    */
-  hold: (method: Method, apiPath: string) => Promise<Gate>;
+  hold: (method: 'POST', apiPath: string) => Promise<Gate>;
 };
 
-export const GATE_TIMEOUT_MS = 5_000;
+const GATE_TIMEOUT_MS = 5_000;
 
 type Deferred = { promise: Promise<void>; resolve: () => void; reject: (reason: Error) => void };
 

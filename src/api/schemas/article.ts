@@ -12,9 +12,7 @@ export const ArticleSchema = z.object({
 
 export const ArticleResponseSchema = z.object({ article: ArticleSchema });
 
-export type Article = z.infer<typeof ArticleSchema>;
-
-export const NewArticleSchema = z.object({
+const NewArticleSchema = z.object({
   title: z.string(),
   description: z.string(),
   body: z.string(),

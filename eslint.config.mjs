@@ -17,10 +17,11 @@ export default defineConfig(
     files: ['tests/**/*.ts'],
     extends: [playwright.configs['flat/recommended']],
     rules: {
-      // The signed-in and signed-out checks live in the header component; count them as assertions.
+      // The signed-in and signed-out checks live in the header component, and the oracle of the
+      // setup project is the exception of registerVerified; count all three as assertions.
       'playwright/expect-expect': [
         'warn',
-        { assertFunctionNames: ['expectSignedInAs', 'expectSignedOut'] },
+        { assertFunctionNames: ['expectSignedInAs', 'expectSignedOut', 'registerVerified'] },
       ],
     },
   },

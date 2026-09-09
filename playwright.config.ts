@@ -59,17 +59,17 @@ export default defineConfig({
     // `chromium` is a scheduling dependency, not a data one: a later phase keeps these tests out of
     // the seconds in which the browser registration scenario issues its tokens, where sharing a
     // second hands both the same token. The cost, measured: a red browser test skips this project.
-    // 60 s, not the global 30, because one registration has to fit: waiting for the second reserved
-    // for the slot costs up to 4 s, waiting out the stand's clock up to 8 s, and a collision is
-    // retried up to three times - a ceiling near 37 s against 9 s observed at worst. The budget is
-    // per fixture setup and per test body, not shared between them (measured: with the timeout at
-    // 6 s a test that registers twice, once in a worker fixture and once in its own, still passes),
-    // so it is that single ceiling the value has to cover, not their sum.
+    // 45 s, not the global 30, because one registration has to fit: waiting for the second reserved
+    // for the slot costs up to 4 s, the identity check about 4 s and at most 8 s before it gives up,
+    // and a collision is retried three times - two retried attempts plus a last one hitting that
+    // 8 s gives a ceiling near 29 s, against 9 s observed at worst. The budget is per fixture setup
+    // and per test body rather than shared (measured: at 6 s a test that registers twice, once in a
+    // worker fixture and once in its own, still passes), so the value covers that single ceiling.
     {
       name: 'api',
       testDir: 'tests/api',
       dependencies: ['setup', 'chromium'],
-      timeout: 60_000,
+      timeout: 45_000,
     },
     // Checks of the framework itself: no browser and no stand, so they run even when the stand is down.
     // Deterministic by construction, hence no retries even in CI.

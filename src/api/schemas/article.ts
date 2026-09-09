@@ -46,3 +46,5 @@ export const ArticleListResponseSchema = z.object({
   articles: z.array(ArticleSchema.omit({ body: true })),
   articlesCount: z.number(),
 });
+
+export type ListedArticle = z.infer<typeof ArticleListResponseSchema>['articles'][number];

@@ -1,0 +1,11 @@
+# The image is built from the committed tree, so this list covers what a working copy adds on top of
+# it. It is not what keeps the image clean: the Dockerfile copies sources path by path, so nothing
+# reaches the image unless it is named there.
+.git
+node_modules
+test-results
+playwright-report
+allure-results
+allure-report
+.env
+**/.DS_Store

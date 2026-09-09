@@ -68,6 +68,66 @@ npx playwright show-report
 если браузерный тест покраснел, проект `api` не запускается вовсе — Playwright пропускает проект,
 чья зависимость упала.
 
+## Запуск в Docker
+
+Нужен клон репозитория и Docker; Node и браузеры на машине не нужны.
+
+Собрать образ:
+
+```bash
+git archive HEAD | docker build -t conduit-e2e -
+```
+
+Контекст сборки — закоммиченное дерево, поэтому собирается ровно то, что получит клонировавший
+репозиторий; из каталога, скачанного архивом, команда не сработает, ей нужен git. Собрать образ надо
+до первой команды `docker compose`: без готового образа compose соберёт его сам из рабочего каталога.
+
+Внутри образа Node.js v24.18.1, его печатает `docker run --rm conduit-e2e node -v`.
+
+Прогнать весь набор:
+
+```bash
+docker compose run --rm e2e
+```
+
+Демонстрация падения — та же команда с другим скриптом:
+
+```bash
+docker compose run --rm e2e npm run test:failure-demo
+```
+
+Встроенный отчёт, трейсы и `allure-results` пишутся в примонтированные каталоги и остаются на хосте
+после удаления контейнера. Если в проекте уже выполнен `npm ci`, они открываются командами раздела
+«Отчёты и трейсы». Если нет — оба отчёта раздаёт тот же образ:
+
+```bash
+docker compose run --rm -p 8080:8080 allure
+docker compose run --rm -p 9323:9323 e2e npx playwright show-report --host 0.0.0.0
+```
+
+Первая собирает и раздаёт Allure на `http://localhost:8080`, вторая — встроенный отчёт с трейсом
+упавшего теста на `http://localhost:9323`; обе проверены запросом с хоста. Флаг `-p` обязателен:
+объявленный сервисом порт при `docker compose run` сам не публикуется — измерено, ответа нет.
+
+Настройки `ipc: host` и `init: true` заданы в описании сервиса: флагов для них у подкоманды нет,
+`docker compose run --ipc=host` отвечает `unknown flag: --ipc`. Первая даёт Chromium разделяемую
+память сверх умолчания контейнера, вторая — обработку сигналов; обе по рекомендации Playwright.
+
+`BASE_URL`, `API_URL` и `CONTRACT_FAILURE_DEMO` пробрасываются в контейнер, когда заданы. Учтите:
+Compose берёт их не только из окружения, но и из файла `.env` рядом с `docker-compose.yml`
+(проверено прогоном), поэтому при наличии `.env` контейнерный прогон ведёт себя ровно как локальный.
+
+Прогон измерялся на Docker Desktop для macOS, где владелец записанных на хост файлов подставляется
+сам. На Linux с Docker Engine каталоги отчётов, которых в свежем клоне нет, создаст демон от root, а
+процесс в контейнере идёт под пользователем образа (uid 1001) — запись упадёт. По документации
+Docker лечится добавлением `--user` к любой из команд выше; проверить было не на чем, Linux-машины
+под рукой нет:
+
+```bash
+mkdir -p test-results playwright-report allure-results allure-report
+docker compose run --rm --user "$(id -u):$(id -g)" e2e
+```
+
 <a id="failure-demo"></a>
 
 ## Как выглядит пойманный дефект
@@ -209,7 +269,7 @@ docs/
 | tc-4     | повреждённый объект статьи                                   | `tests/ui/contracts/article-contract.spec.ts`           | `Article contract › renders a corrupted article with nothing wrong on screen`, `› rejects an article whose body is null`                                                                                                                                          |
 | tc-4     | та же формулировка кейса по заголовку: валидация формы входа | `tests/ui/auth/login-validation.spec.ts`                | `Login form validation › rejects wrong credentials with a message from the API`                                                                                                                                                                                   |
 | deliv-1  | публичный репозиторий                                        | —                                                       | этот репозиторий                                                                                                                                                                                                                                                  |
-| deliv-2  | README с инструкцией по запуску локально и в Docker          | `README.md`                                             | локальный запуск — раздел «Запуск локально» этого файла; запуска в контейнере в репозитории нет, часть пункта не закрыта                                                                                                                                          |
+| deliv-2  | README с инструкцией по запуску локально и в Docker          | `README.md`, `Dockerfile`, `docker-compose.yml`         | разделы «Запуск локально» и «Запуск в Docker» этого файла                                                                                                                                                                                                         |
 | deliv-3  | скриншот и трейс при падении                                 | `docs/failure-demo/`                                    | раздел «Как выглядит пойманный дефект»                                                                                                                                                                                                                            |
 | archmd-1 | управление изменениями дизайна                               | `ARCHITECTURE.md`                                       | раздел 1                                                                                                                                                                                                                                                          |
 | archmd-2 | конфигурация, матрица, ловушка секретов                      | `ARCHITECTURE.md`                                       | раздел 2                                                                                                                                                                                                                                                          |
@@ -329,15 +389,16 @@ GitHub Actions, файл `.github/workflows/e2e.yml`, две задачи:
 
 - `lint` — ESLint, Prettier, компилятор TypeScript и проект `unit`. Ни браузера, ни стенда: зелёный
   `lint` при лежащем стенде означает, что каркас цел.
-- `e2e` — весь набор целиком, без исключений по тегам. Артефакты: встроенный отчёт, трейсы и
-  `allure-results`.
+- `e2e` — весь набор целиком, без исключений по тегам. Идёт внутри образа Playwright той же
+  версии, поэтому браузер не ставится на шаге: он уже в образе, и внешних репозиториев пакетов
+  задача не касается. Артефакты: встроенный отчёт, трейсы и `allure-results`.
 
 Прогон идёт на pull request в `main` и на push в `main`, предыдущий прогон той же ветки
 отменяется. Расписания нет намеренно: чужой публичный стенд не нужно дёргать по часам.
 
-Если тот же набор понадобится в GitLab CI, шаги переносятся один в один: `npm ci` и
-`npx playwright install --with-deps chromium` — в `before_script`; `npm run lint` и
-`npm run typecheck` — в задачу `lint` стадии `test`; `npm test` — в задачу `e2e` той же стадии;
+Если тот же набор понадобится в GitLab CI, шаги переносятся один в один: тот же образ — в
+`image:` задачи, `npm ci` — в `before_script`; `npm run lint` и `npm run typecheck` — в задачу
+`lint` стадии `test`; `npm test` — в задачу `e2e` той же стадии;
 каталоги `playwright-report`, `test-results` и `allure-results` — в `artifacts:paths` с
 `when: always`; отмена предыдущего прогона ветки — `interruptible: true` вместе с
 `workflow:auto_cancel`. Готового `.gitlab-ci.yml` в репозитории нет намеренно: непроверенный

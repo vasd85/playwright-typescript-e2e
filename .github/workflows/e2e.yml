@@ -32,14 +32,17 @@ jobs:
   e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # The image of the pinned Playwright version already carries the browser and the system
+    # libraries it needs, so this job installs neither and never reaches for a package repository.
+    # It ran `playwright install --with-deps` until the apt index of an unrelated repository
+    # preinstalled on the runner went stale and failed the job twice on a green tree.
+    container:
+      image: mcr.microsoft.com/playwright:v1.62.1-noble
+      # Not as root: chromium refuses to start without a sandbox, and 1001 owns the workspace.
+      options: --user 1001
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 24
-          cache: npm
       - run: npm ci
-      - run: npx playwright install --with-deps chromium
       - run: npm test
       - uses: actions/upload-artifact@v7
         if: ${{ !cancelled() }}

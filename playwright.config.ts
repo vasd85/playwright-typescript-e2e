@@ -8,7 +8,8 @@ const isCI = !!process.env.CI;
 export default defineConfig({
   testDir: 'tests',
   globalSetup: './src/config/global-setup.ts',
-  // Strips credentials from failure traces before the reporters copy them; see src/config/global-teardown.ts.
+  // Strips credentials from every failure trace and aria snapshot, including the copies the
+  // allure reporter has already made during the run; see src/config/global-teardown.ts.
   globalTeardown: './src/config/global-teardown.ts',
   fullyParallel: true,
   forbidOnly: isCI,

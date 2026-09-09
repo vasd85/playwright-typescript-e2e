@@ -26,7 +26,7 @@ export const ArticleRequestSchema = z.object({ article: NewArticleSchema });
 /**
  * What the wire may carry, as opposed to `ArticleSchema`, which says what the contract requires.
  * A null body parses here and fails there, which is the whole of the fourth case: the response
- * has to reach `expectContract` intact for the helper to report the violation itself.
+ * has to reach `expectValid` intact for the helper to report the violation itself.
  */
 export const ArticleEnvelopeSchema = z.object({
   article: z.looseObject({

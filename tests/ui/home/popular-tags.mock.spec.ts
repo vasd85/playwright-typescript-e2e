@@ -1,14 +1,12 @@
-import type { Page, Response } from '@playwright/test';
+import type { Page } from '@playwright/test';
 import { apiUrl } from '../../../src/api/client';
+import { waitForApiResponse } from '../../../src/api/response';
 import { TagsResponseSchema } from '../../../src/api/schemas/tags';
 import { test, expect } from '../../../src/fixtures';
 
 /** The tag list the assignment asks for. None of them exists on the stand. */
 const MOCKED_TAGS = ['Bitcoin', 'Ethereum', 'Solana', 'USDT'];
 const CLICKED_TAG = 'Bitcoin';
-
-const isTagsRequest = (response: Response): boolean =>
-  response.url() === apiUrl('tags') && response.request().method() === 'GET';
 
 const mockTags = async (page: Page): Promise<void> => {
   await page.route(apiUrl('tags'), (route) => route.fulfill({ json: { tags: MOCKED_TAGS } }));
@@ -35,11 +33,8 @@ test.describe(
         await mockTags(page);
       });
 
-      const response = await test.step('Open the home page', async () => {
-        const tags = page.waitForResponse(isTagsRequest);
-        await homePage.goto();
-        return tags;
-      });
+      const response = await test.step('Open the home page', () =>
+        waitForApiResponse(page, 'GET', 'tags', () => homePage.goto()));
 
       await test.step('Check that the page received the replaced body', async () => {
         expect(

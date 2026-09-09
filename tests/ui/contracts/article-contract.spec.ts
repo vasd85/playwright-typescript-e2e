@@ -1,8 +1,9 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import type { Page, Response } from '@playwright/test';
+import type { Page } from '@playwright/test';
 import { apiUrl } from '../../../src/api/client';
 import { expectValid } from '../../../src/api/expect-valid';
+import { waitForApiResponse } from '../../../src/api/response';
 import { ArticleEnvelopeSchema, ArticleSchema } from '../../../src/api/schemas/article';
 import { env } from '../../../src/config/env';
 import { test, expect, NO_AUTH } from '../../../src/fixtures';
@@ -17,10 +18,8 @@ test.use({ storageState: NO_AUTH });
  */
 const CORRUPTED = readFileSync(path.join(__dirname, 'article.broken.json'), 'utf8');
 const corrupted = ArticleEnvelopeSchema.parse(JSON.parse(CORRUPTED)).article;
-const ARTICLE_URL = apiUrl(`articles/${corrupted.slug}`);
-
-const isArticleRequest = (response: Response): boolean =>
-  response.url() === ARTICLE_URL && response.request().method() === 'GET';
+const ARTICLE_PATH = `articles/${corrupted.slug}`;
+const ARTICLE_URL = apiUrl(ARTICLE_PATH);
 
 /**
  * The comments of the same slug are served too, and the page does not render without them:
@@ -110,8 +109,9 @@ test.describe(
         });
 
         const response = await test.step('Open the article page', async () => {
-          const served = page.waitForResponse(isArticleRequest);
-          await articlePage.goto(corrupted.slug);
+          const served = await waitForApiResponse(page, 'GET', ARTICLE_PATH, () =>
+            articlePage.goto(corrupted.slug),
+          );
           await expect(articlePage.title).toHaveText(corrupted.title);
           return served;
         });

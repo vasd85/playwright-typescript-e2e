@@ -1,22 +1,15 @@
 import type { Locator, Page, Response } from '@playwright/test';
-import { apiUrl } from '../../../src/api/client';
 import { expectValid } from '../../../src/api/expect-valid';
+import { waitForApiResponse } from '../../../src/api/response';
 import { ArticleRequestSchema, ArticleResponseSchema } from '../../../src/api/schemas/article';
 import { ValidationErrorSchema } from '../../../src/api/schemas/errors';
 import { buildArticle } from '../../../src/data/article.builder';
 import { uniqueId } from '../../../src/data/unique';
 import { test, expect } from '../../../src/fixtures';
 
-/** Compared in full: `/articles` also begins the feed, the comments and the favourites. */
-const isArticleCreation = (response: Response): boolean =>
-  response.url() === apiUrl('articles') && response.request().method() === 'POST';
-
 const submitAndCatchResponse = (page: Page, submit: () => Promise<void>): Promise<Response> =>
-  test.step('Intercept POST **/api/articles', async () => {
-    const response = page.waitForResponse(isArticleCreation);
-    await submit();
-    return response;
-  });
+  test.step('Intercept POST **/api/articles', () =>
+    waitForApiResponse(page, 'POST', 'articles', submit));
 
 const ALL_FIELDS_BLANK = [
   "title can't be blank",

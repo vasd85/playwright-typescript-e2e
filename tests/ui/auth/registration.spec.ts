@@ -5,6 +5,15 @@ import { test, expect, NO_AUTH } from '../../../src/fixtures';
 // The registration form needs a signed-out browser: this file opts out of the worker session.
 test.use({ storageState: NO_AUTH });
 
+// One retry, only here. The stand derives a token from the user id and the whole second of the
+// registration, and the first user of a fresh session always gets the same id, so anyone else
+// registering on this public stand within that second walks away with our token (DEF-001).
+// Every other registration in this suite answers that by verifying the identity and registering
+// again; this scenario cannot, because registering once through the form is what it tests.
+// A retry starts over with a new user in a new second, and the report still shows the first
+// attempt as flaky rather than hiding it.
+test.describe.configure({ retries: 1 });
+
 test(
   'a new user signs up, logs out and logs in again',
   {

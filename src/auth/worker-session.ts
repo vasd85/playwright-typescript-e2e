@@ -2,7 +2,12 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
 import type { APIRequestContext, APIResponse, PlaywrightTestOptions } from '@playwright/test';
-import { SessionFileSchema, UserResponseSchema, type SessionFile } from '../api/schemas/user';
+import {
+  AuthUserResponseSchema,
+  SessionFileSchema,
+  type NewUser,
+  type SessionFile,
+} from '../api/schemas/user';
 import { getCurrentUser, registerUser } from '../api/users.api';
 import { env } from '../config/env';
 import { uniqueId } from '../data/unique';
@@ -11,6 +16,13 @@ import { buildUser } from '../data/user.builder';
 export type StorageState = NonNullable<PlaywrightTestOptions['storageState']>;
 
 export const ATTEMPTS = 3;
+
+/**
+ * A registered account with everything the caller may need: the credentials it was built from,
+ * the verified token, and the registration response itself, so a test can assert the contract of
+ * the body this helper already read for the token.
+ */
+export type VerifiedAccount = { user: NewUser; token: string; response: APIResponse };
 // The identity is checked in a request the stand dates at least this many seconds after the
 // registration: one second for the token's second to end, one more because the stand's
 // `Date` header may lag behind its clock by up to a second.
@@ -46,7 +58,7 @@ export function stateFromToken(token: string): StorageState {
 export async function whoAmI(api: APIRequestContext, token: string): Promise<string | undefined> {
   const response = await getCurrentUser(api, token);
   if (response.status() !== 200) return undefined;
-  return UserResponseSchema.parse(await response.json()).user.username;
+  return AuthUserResponseSchema.parse(await response.json()).user.username;
 }
 
 /** The second of the stand's clock at which it sent the response, from the `Date` header. */
@@ -73,7 +85,7 @@ async function whoAmIAfter(
     const second = serverSecond(response);
     if (second >= registeredSecond + SECONDS_AFTER_REGISTRATION) {
       if (response.status() !== 200) return { who: undefined, second };
-      return { who: UserResponseSchema.parse(await response.json()).user.username, second };
+      return { who: AuthUserResponseSchema.parse(await response.json()).user.username, second };
     }
     if (Date.now() > deadline) {
       throw new Error(
@@ -101,15 +113,19 @@ export async function staggerToSlotSecond(slot: number, workers: number): Promis
  * registration in the same second yields the same token and rebinds it to its own session,
  * whoever registered last. The identity is therefore checked in a request the stand itself
  * dates after that second has passed, when the binding can no longer change. A mismatch
- * means a collision: a new user is registered in a new second. With `staggerWorkers` set, every attempt first waits for the
- * second reserved for the slot; callers that register sequentially need no stagger.
+ * means a collision: a new user is registered in a new second. With `staggerWorkers` set, every
+ * attempt first waits for the second reserved for the slot; callers that register sequentially
+ * need no stagger.
+ *
+ * The response is returned alive: its body stays readable only while the request context lives,
+ * so the caller must not dispose the context before whoever reads it is done.
  */
-export async function registerVerified(
+export async function registerVerifiedAccount(
   api: APIRequestContext,
   slot: number,
   label: string,
   staggerWorkers?: number,
-): Promise<SessionFile> {
+): Promise<VerifiedAccount> {
   let lastUsername = '';
   let lastWho: string | undefined;
   for (let attempt = 1; attempt <= ATTEMPTS; attempt += 1) {
@@ -120,13 +136,13 @@ export async function registerVerified(
       throw new Error(`POST /users responded ${response.status()}: ${await response.text()}`);
     }
     const registeredSecond = serverSecond(response);
-    const { token } = UserResponseSchema.parse(await response.json()).user;
+    const { token } = AuthUserResponseSchema.parse(await response.json()).user;
     const { who, second } = await whoAmIAfter(api, token, registeredSecond);
     if (who === user.username) {
       console.log(
         `[auth] ${label} registered=${user.username} attempts=${attempt} second=${registeredSecond} verified-at=${second}`,
       );
-      return { username: user.username, email: user.email, token };
+      return { user, token, response };
     }
     console.log(
       `[auth] ${label} mismatch: token of ${user.username} resolves to ${who ?? 'nobody'}, retrying`,
@@ -137,4 +153,19 @@ export async function registerVerified(
   throw new Error(
     `Worker slot ${slot}: the token of ${lastUsername} resolves to ${lastWho ?? 'nobody'} after ${ATTEMPTS} attempts (token collision on the stand)`,
   );
+}
+
+/**
+ * The same registration without the password: what a worker session is made of. The password of
+ * `registerVerifiedAccount` stays in the memory of whoever asked for it and never reaches the
+ * slot file, which `writeSession` keeps down to three fields.
+ */
+export async function registerVerified(
+  api: APIRequestContext,
+  slot: number,
+  label: string,
+  staggerWorkers?: number,
+): Promise<SessionFile> {
+  const { user, token } = await registerVerifiedAccount(api, slot, label, staggerWorkers);
+  return { username: user.username, email: user.email, token };
 }

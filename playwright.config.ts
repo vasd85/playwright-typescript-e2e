@@ -12,6 +12,8 @@ export default defineConfig({
   globalTeardown: './src/config/global-teardown.ts',
   fullyParallel: true,
   forbidOnly: isCI,
+  // tests/ui/auth/registration.spec.ts overrides this with one retry of its own, and that value
+  // wins over --retries 0 on the command line as well; the spec says why.
   retries: isCI ? 1 : 0,
   // The public stand is shared: at most four workers anywhere, and no more than half of the local cores.
   workers: isCI ? 4 : Math.min(4, Math.ceil(os.availableParallelism() / 2)),

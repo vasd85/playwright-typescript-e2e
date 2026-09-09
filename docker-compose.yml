@@ -1,0 +1,28 @@
+services:
+  e2e:
+    build: .
+    image: conduit-e2e
+    # `docker compose run` has no --init and no --ipc, so both belong here rather than on the
+    # command line. Chromium needs more shared memory than a container gets by default.
+    init: true
+    ipc: host
+    # Passed through only when set on the host; the suite defaults to the public demo without them.
+    environment:
+      - BASE_URL
+      - API_URL
+    volumes:
+      - ./test-results:/app/test-results
+      - ./playwright-report:/app/playwright-report
+      - ./allure-results:/app/allure-results
+      - ./allure-report:/app/allure-report
+
+  allure:
+    build: .
+    image: conduit-e2e
+    init: true
+    ports:
+      - '8080:8080'
+    volumes:
+      - ./allure-results:/app/allure-results
+      - ./allure-report:/app/allure-report
+    command: sh -c "npm run report:allure && npx allure open --port 8080 allure-report"

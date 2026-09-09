@@ -1,0 +1,9 @@
+# The image is built from the committed tree, so this list only has to cover what a working copy
+# adds on top of it: installed dependencies, the results of previous runs and a local override file.
+.git
+node_modules
+test-results
+playwright-report
+allure-results
+allure-report
+.env

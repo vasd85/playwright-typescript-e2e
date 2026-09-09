@@ -14,3 +14,14 @@ export function registerUser(request: APIRequestContext, user: NewUser): Promise
 export function getCurrentUser(request: APIRequestContext, token: string): Promise<APIResponse> {
   return request.get(apiUrl('user'), { headers: { Authorization: `Token ${token}` } });
 }
+
+/**
+ * Signs in an existing account. The context must be a clean one: the stand issues a new token on
+ * every login and drops the previous one, so a login as the worker user would kill its session.
+ */
+export function loginUser(
+  request: APIRequestContext,
+  credentials: { email: string; password: string },
+): Promise<APIResponse> {
+  return request.post(apiUrl('users/login'), { data: { user: credentials } });
+}

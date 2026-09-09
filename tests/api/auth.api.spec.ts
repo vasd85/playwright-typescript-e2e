@@ -21,9 +21,9 @@ test.describe(
     ],
   },
   () => {
-    // No assertion on the 201 here: the fixture hands over the response of a successful
-    // registration only, and throws with the status otherwise. That gate is proven by breaking
-    // the request path instead.
+    // Neither the 201 nor the presence of a token is asserted here: the fixture hands over the
+    // response of a successful, identity-checked registration only. Both gates are proven by
+    // breaking the request path instead.
     test('registers a disposable account', async ({ freshRegistration }) => {
       const { user, response } = freshRegistration;
 
@@ -35,7 +35,6 @@ test.describe(
         );
         expect(created.username, 'the stand stored the username that was sent').toBe(user.username);
         expect(created.email, 'the stand stored the email that was sent').toBe(user.email);
-        expect(created.token, 'the registration answers with a token').not.toBe('');
       });
     });
 
@@ -48,8 +47,7 @@ test.describe(
         username: freshRegistration.user.username,
       };
 
-      // Sent from the session of that account: an anonymous registration would open a new session,
-      // where the name is free and the stand would happily take it.
+      // Sent from the session of that account: anonymously the name would be free (see registerUser).
       const response = await test.step('Register the same username again', () =>
         registerUser(apiAsFreshUser, taken));
 

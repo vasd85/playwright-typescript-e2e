@@ -59,10 +59,7 @@ export const test = authTest.extend<ApiTestFixtures, ApiWorkerFixtures>({
     }
   },
 
-  /**
-   * The session of `freshRegistration`, as a context. The stand keeps one universe per token, so
-   * this is the only way to address the universe that account lives in.
-   */
+  /** The session of `freshRegistration`, as a context: one universe per token (see getArticle). */
   apiAsFreshUser: async ({ playwright, freshRegistration }, use) => {
     const api = await playwright.request.newContext({
       extraHTTPHeaders: { Authorization: `Token ${freshRegistration.token}` },

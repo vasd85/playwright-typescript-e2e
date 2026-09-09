@@ -56,13 +56,11 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
       dependencies: ['setup'],
     },
-    // `chromium` is a scheduling dependency, not a data one: the runner starts a project only once
-    // every dependency finished, which keeps these tests out of the seconds in which the browser
-    // registration scenario issues its tokens. Sharing a second there would hand both the same
-    // token and silently move one of them into the other's session.
-    // The timeout is the project's own: registering a disposable account waits for the second
-    // reserved for the slot and then for the stand's clock to pass it, and a worker fixture spends
-    // that time inside the first test of the worker.
+    // `chromium` is a scheduling dependency, not a data one: a later phase keeps these tests out of
+    // the seconds in which the browser registration scenario issues its tokens, where sharing a
+    // second hands both the same token. The cost, measured: a red browser test skips this project.
+    // The timeout is the project's own - registering a disposable account waits out two seconds of
+    // the stand's clock, and that time lands inside the first test of the worker.
     {
       name: 'api',
       testDir: 'tests/api',

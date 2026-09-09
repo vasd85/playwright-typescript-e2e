@@ -23,8 +23,7 @@ const articleOfAnotherAuthor = (articles: ListedArticle[], username: string): Li
   return other;
 };
 
-// Every request here goes through the worker's own context. The stand keeps one universe per
-// token, so an anonymous read would land in a fresh session where none of this exists - and a
+// Every request goes through the worker's own context (see getArticle): read anonymously, the
 // check for "gone after the delete" would pass without the delete ever happening.
 test.describe(
   'Conduit API articles',
@@ -56,8 +55,7 @@ test.describe(
           await response.json(),
           'article.json',
         );
-        // Recorded before the comparisons below, so a failing one still leaves it to the cleanup.
-        createdArticles.push(stored.slug);
+        createdArticles.push(stored.slug); // Before the comparisons: a failing one must not strand it.
 
         expect(stored.title, 'the stand stored the title that was sent').toBe(article.title);
         expect(stored.description, 'the stand stored the description that was sent').toBe(
@@ -96,11 +94,8 @@ test.describe(
       });
     });
 
-    // The other author is one the stand puts in every session of its own accord. Manufacturing one
-    // is not an option: a second user can only be added to an existing session by a registration
-    // carrying that session's token, and binding the new token there drops the binding of the user
-    // already inside. The article is therefore found by its author, never by a fixed slug, so a
-    // different set of demo data fails the search with a sentence instead of passing quietly.
+    // The other author comes from the demo data: a second user of our own cannot be added to an
+    // existing session without dropping the binding of the one already there.
     test('refuses to delete an article of another author', async ({ apiAsUser, workerAuth }) => {
       const foreign = await test.step('Find an article of another author', async () => {
         const response = await listArticles(apiAsUser);
@@ -124,13 +119,29 @@ test.describe(
       });
     });
 
-    test('lists the tags', async ({ apiAsUser }) => {
-      const response = await test.step('Ask for the tag list', () => getTags(apiAsUser));
+    test('lists the tag of an article it just created', async ({
+      apiAsUser,
+      createdArticles,
+    }, testInfo) => {
+      const id = uniqueId(testInfo.parallelIndex);
+      const article = { ...buildArticle(id), tagList: [`qa${id}`] };
 
-      await test.step('Validate the tag list', async () => {
+      await test.step('Create an article carrying a tag of its own', async () => {
+        const response = await createArticle(apiAsUser, article);
+        expect(response.status(), 'POST /articles creates the article').toBe(201);
+        const { article: stored } = await expectValid(
+          ArticleResponseSchema,
+          await response.json(),
+          'article.json',
+        );
+        createdArticles.push(stored.slug);
+      });
+
+      await test.step('Check that the tag list carries it', async () => {
+        const response = await getTags(apiAsUser);
         expect(response.status(), 'GET /tags answers with the list').toBe(200);
         const { tags } = await expectValid(TagsResponseSchema, await response.json(), 'tags.json');
-        expect(tags.length, 'the session serves tags of its own').toBeGreaterThan(0);
+        expect(tags, 'the tag of the article just created is listed').toContain(article.tagList[0]);
       });
     });
   },

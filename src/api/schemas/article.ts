@@ -37,3 +37,14 @@ export const ArticleEnvelopeSchema = z.object({
 });
 
 export type NewArticle = z.infer<typeof NewArticleSchema>;
+
+/**
+ * The list endpoint answers with articles that carry no `body` at all - the field is absent,
+ * not null - so the full contract cannot describe them.
+ */
+export const ArticleListResponseSchema = z.object({
+  articles: z.array(ArticleSchema.omit({ body: true })),
+  articlesCount: z.number(),
+});
+
+export type ListedArticle = z.infer<typeof ArticleListResponseSchema>['articles'][number];

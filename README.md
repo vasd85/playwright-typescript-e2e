@@ -296,13 +296,13 @@ docs/
 ```
 [auth] setup slot=0 registered=… attempts=1 second=1788951916 verified-at=1788951918
 [auth] setup slot=1 registered=… attempts=1 second=1788951918 verified-at=1788951920
-[auth] setup slot=2 mismatch: token of … resolves to qa_MelanieStanton_…, retrying
+[auth] setup slot=2 mismatch: token of … resolves to …, retrying
 [auth] setup slot=2 registered=… attempts=2 second=1788951922 verified-at=1788951924
 [auth] setup slot=3 registered=… attempts=1 second=1788951924 verified-at=1788951926
 [auth] slot=0 worker=2 reused=…
 ```
 
-Вывод настоящего прогона на четырёх воркерах; имена одноразовых пользователей сокращены.
+Вывод настоящего прогона на четырёх воркерах; имена пользователей сокращены.
 Третья и четвёртая строки — сработавшая защита: выданный нам токен разрешился в постороннего
 пользователя, зарегистрированного на том же стенде в ту же секунду, поэтому регистрация повторилась
 и со второй попытки получила своего. Подробности — в разделе «Ограничения демо-стенда».

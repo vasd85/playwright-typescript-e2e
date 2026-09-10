@@ -387,8 +387,8 @@ docs/
 
 GitHub Actions, файл `.github/workflows/e2e.yml`, две задачи:
 
-- `static` — ESLint, Prettier, компилятор TypeScript и проект `unit`. Ни браузера, ни стенда: зелёный
-  `static` при лежащем стенде означает, что каркас цел.
+- `static` — ESLint, Prettier, компилятор TypeScript и проект `unit`. «Static» здесь значит «без
+  браузера и без стенда»: зелёный `static` при лежащем стенде означает, что каркас цел.
 - `e2e` — весь набор целиком, без исключений по тегам. Идёт внутри образа Playwright той же
   версии, поэтому браузер не ставится на шаге: он уже в образе, и внешних репозиториев пакетов
   задача не касается. Артефакты: встроенный отчёт, трейсы и `allure-results`.
@@ -396,10 +396,10 @@ GitHub Actions, файл `.github/workflows/e2e.yml`, две задачи:
 Прогон идёт на pull request в `main` и на push в `main`, предыдущий прогон той же ветки
 отменяется. Расписания нет намеренно: чужой публичный стенд не нужно дёргать по часам.
 
-Если тот же набор понадобится в GitLab CI, шаги переносятся один в один: тот же образ — в
-`image:` задачи, `npm ci` — в `before_script`; `npm run lint`, `npm run typecheck` и
-`npm run test:unit` — в задачу `static` стадии `test`; `npm test` — в задачу `e2e` той же стадии;
-каталоги `playwright-report`, `test-results` и `allure-results` — в `artifacts:paths` с
+Если тот же набор понадобится в GitLab CI, шаги переносятся один в один: `npm ci` — в
+`before_script`; `npm run lint`, `npm run typecheck` и `npm run test:unit` — в задачу `static`
+стадии `test`; `npm test` — в задачу `e2e` той же стадии, и только ей нужен `image:` с образом
+Playwright; каталоги `playwright-report`, `test-results` и `allure-results` — в `artifacts:paths` с
 `when: always`; отмена предыдущего прогона ветки — `interruptible: true` вместе с
 `workflow:auto_cancel`. Готового `.gitlab-ci.yml` в репозитории нет намеренно: непроверенный
 конфиг — это обещание, за которое никто не отвечал.

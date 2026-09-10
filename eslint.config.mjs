@@ -17,7 +17,7 @@ export default defineConfig(
     .map(({ name, path }) => includeIgnoreFile(path, name)),
   js.configs.recommended,
   {
-    // Every .mjs file here is a script for Node, not page code. nodeBuiltin rather than node:
+    // Every .mjs file here runs in Node, not in the page. nodeBuiltin rather than node:
     // a module has neither require nor __dirname.
     files: ['**/*.mjs'],
     languageOptions: { globals: globals.nodeBuiltin },

@@ -387,8 +387,8 @@ docs/
 
 GitHub Actions, файл `.github/workflows/e2e.yml`, две задачи:
 
-- `lint` — ESLint, Prettier, компилятор TypeScript и проект `unit`. Ни браузера, ни стенда: зелёный
-  `lint` при лежащем стенде означает, что каркас цел.
+- `static` — ESLint, Prettier, компилятор TypeScript и проект `unit`. Ни браузера, ни стенда: зелёный
+  `static` при лежащем стенде означает, что каркас цел.
 - `e2e` — весь набор целиком, без исключений по тегам. Идёт внутри образа Playwright той же
   версии, поэтому браузер не ставится на шаге: он уже в образе, и внешних репозиториев пакетов
   задача не касается. Артефакты: встроенный отчёт, трейсы и `allure-results`.
@@ -397,8 +397,8 @@ GitHub Actions, файл `.github/workflows/e2e.yml`, две задачи:
 отменяется. Расписания нет намеренно: чужой публичный стенд не нужно дёргать по часам.
 
 Если тот же набор понадобится в GitLab CI, шаги переносятся один в один: тот же образ — в
-`image:` задачи, `npm ci` — в `before_script`; `npm run lint` и `npm run typecheck` — в задачу
-`lint` стадии `test`; `npm test` — в задачу `e2e` той же стадии;
+`image:` задачи, `npm ci` — в `before_script`; `npm run lint`, `npm run typecheck` и
+`npm run test:unit` — в задачу `static` стадии `test`; `npm test` — в задачу `e2e` той же стадии;
 каталоги `playwright-report`, `test-results` и `allure-results` — в `artifacts:paths` с
 `when: always`; отмена предыдущего прогона ветки — `interruptible: true` вместе с
 `workflow:auto_cancel`. Готового `.gitlab-ci.yml` в репозитории нет намеренно: непроверенный

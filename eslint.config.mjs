@@ -24,4 +24,12 @@ export default defineConfig(
       ],
     },
   },
+  {
+    // Only here: the oracle of the setup project is the exception registerVerified throws, and
+    // naming it an assertion for every spec would let a test without an oracle through.
+    files: ['tests/setup/**/*.ts'],
+    rules: {
+      'playwright/expect-expect': ['warn', { assertFunctionNames: ['registerVerified'] }],
+    },
+  },
 );

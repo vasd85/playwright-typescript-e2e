@@ -24,15 +24,16 @@ test.describe('Schema validation', () => {
     expect(attachmentNames()).toEqual([]);
   });
 
-  test('attaches the value and throws with the wording zod produced', async () => {
-    // The README quotes this message and the assignment asks for it by name, so the wording is
-    // pinned here rather than only in the test case that demonstrates it.
+  test('attaches the value and throws with the consequence and the wording zod produced', async () => {
+    // The assignment asks for this message by name and the README shows it as a screenshot, so
+    // the wording is pinned here rather than only in the test case that demonstrates it.
     const error = await expectValid(ArticleSchema, BROKEN, 'article.broken.json').catch(
       (thrown: unknown) => thrown,
     );
 
     expect(String(error)).toContain(
-      'Contract violated: field "body": Invalid input: expected string, received null',
+      'Contract violated: the response does not carry what the application relies on - ' +
+        'field "body": Invalid input: expected string, received null',
     );
     expect(attachmentNames()).toEqual(['article.broken.json', 'violations.json']);
   });

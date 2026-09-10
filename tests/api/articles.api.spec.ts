@@ -124,7 +124,8 @@ test.describe(
       createdArticles,
     }, testInfo) => {
       const id = uniqueId(testInfo.parallelIndex);
-      const article = { ...buildArticle(id), tagList: [`qa${id}`] };
+      const tag = `qa${id}`;
+      const article = { ...buildArticle(id), tagList: [tag] };
 
       await test.step('Create an article carrying a tag of its own', async () => {
         const response = await createArticle(apiAsUser, article);
@@ -141,7 +142,7 @@ test.describe(
         const response = await getTags(apiAsUser);
         expect(response.status(), 'GET /tags answers with the list').toBe(200);
         const { tags } = await expectValid(TagsResponseSchema, await response.json(), 'tags.json');
-        expect(tags, 'the tag of the article just created is listed').toContain(article.tagList[0]);
+        expect(tags, `the tag ${tag} of the article just created is listed`).toContain(tag);
       });
     });
   },

@@ -21,7 +21,11 @@ test.describe('Environment schema', () => {
   test('empty CONTRACT_FAILURE_DEMO keeps the normal mode', () => {
     expect(parseEnv({}).CONTRACT_FAILURE_DEMO).toBe(false);
     expect(parseEnv({ CONTRACT_FAILURE_DEMO: '' }).CONTRACT_FAILURE_DEMO).toBe(false);
+  });
+
+  test('a value other than 1 keeps the normal mode', () => {
     expect(parseEnv({ CONTRACT_FAILURE_DEMO: 'true' }).CONTRACT_FAILURE_DEMO).toBe(false);
+    expect(parseEnv({ CONTRACT_FAILURE_DEMO: '0' }).CONTRACT_FAILURE_DEMO).toBe(false);
   });
 
   test('CONTRACT_FAILURE_DEMO=1 enables the failure demo mode', () => {

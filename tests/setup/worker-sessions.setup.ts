@@ -1,4 +1,4 @@
-import { test as setup, expect } from '@playwright/test';
+import { test as setup } from '@playwright/test';
 import { registerVerified, sessionPath, writeSession } from '../../src/auth/worker-session';
 
 // Runs before the browser projects. Every worker slot gets a disposable user of its own here,
@@ -9,14 +9,12 @@ import { registerVerified, sessionPath, writeSession } from '../../src/auth/work
 // through the UI. A browser worker then only reuses the session of its slot.
 // Registering here needs no slot stagger - the loop is already sequential - so the budget below
 // is per registration, not per collision-retried registration that also waits for its own second.
+// The oracle here is the exception registerVerified throws when a token resolves to somebody else.
 setup('Register one disposable user per worker slot', async ({ request }, testInfo) => {
   const workers = testInfo.config.workers;
   testInfo.setTimeout(workers * 10_000 + 10_000);
-  const tokens = new Set<string>();
   for (let slot = 0; slot < workers; slot += 1) {
     const session = await registerVerified(request, slot, `setup slot=${slot}`);
     writeSession(sessionPath(testInfo.project.outputDir, slot), session);
-    tokens.add(session.token);
   }
-  expect(tokens.size, 'every slot must hold a token of its own').toBe(workers);
 });

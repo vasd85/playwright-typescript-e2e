@@ -1,28 +1,22 @@
 import type { Locator, Page, Response } from '@playwright/test';
-import { apiUrl } from '../../../src/api/client';
 import { expectValid } from '../../../src/api/expect-valid';
+import { waitForApiResponse } from '../../../src/api/response';
 import { ArticleRequestSchema, ArticleResponseSchema } from '../../../src/api/schemas/article';
 import { ValidationErrorSchema } from '../../../src/api/schemas/errors';
 import { buildArticle } from '../../../src/data/article.builder';
 import { uniqueId } from '../../../src/data/unique';
 import { test, expect } from '../../../src/fixtures';
 
-/** Compared in full: `/articles` also begins the feed, the comments and the favourites. */
-const isArticleCreation = (response: Response): boolean =>
-  response.url() === apiUrl('articles') && response.request().method() === 'POST';
-
 const submitAndCatchResponse = (page: Page, submit: () => Promise<void>): Promise<Response> =>
-  test.step('Intercept POST **/api/articles', async () => {
-    const response = page.waitForResponse(isArticleCreation);
-    await submit();
-    return response;
-  });
+  test.step('Intercept POST **/api/articles', () =>
+    waitForApiResponse(page, 'POST', 'articles', submit));
 
-const ALL_FIELDS_BLANK = [
-  "title can't be blank",
-  "description can't be blank",
-  "body can't be blank",
-];
+// Sorted because the two checks of the reported field names compare against them as they are;
+// expectMessages sorts a copy of its own and does not care.
+const ALL_BLANK_FIELDS = ['body', 'description', 'title'];
+const PARTIAL_BLANK_FIELDS = ['body', 'description'];
+
+const blankMessage = (field: string): string => `${field} can't be blank`;
 
 const expectMessages = (messages: Locator, expected: string[]): Promise<void> =>
   expect
@@ -55,18 +49,16 @@ test.describe(
 
       const response = await submitAndCatchResponse(page, () => editorPage.submit());
 
-      await test.step('Validate the response body from the server', async () => {
+      await test.step('Validate the rejection response body', async () => {
         expect(response.status(), 'POST /api/articles rejects an empty article').toBe(422);
         const { errors } = ValidationErrorSchema.parse(await response.json());
-        expect(Object.keys(errors).sort(), 'every empty field is reported').toEqual([
-          'body',
-          'description',
-          'title',
-        ]);
+        expect(Object.keys(errors).sort(), 'every empty field is reported').toEqual(
+          ALL_BLANK_FIELDS,
+        );
       });
 
       await test.step('Check the errors shown in the form', async () => {
-        await expectMessages(errorMessages.messages, ALL_FIELDS_BLANK);
+        await expectMessages(errorMessages.messages, ALL_BLANK_FIELDS.map(blankMessage));
       });
     });
 
@@ -88,20 +80,16 @@ test.describe(
 
       const response = await submitAndCatchResponse(page, () => editorPage.submit());
 
-      await test.step('Validate the response body from the server', async () => {
+      await test.step('Validate the rejection response body', async () => {
         expect(response.status(), 'POST /api/articles rejects a partial article').toBe(422);
         const { errors } = ValidationErrorSchema.parse(await response.json());
-        expect(Object.keys(errors).sort(), 'the filled field is not reported').toEqual([
-          'body',
-          'description',
-        ]);
+        expect(Object.keys(errors).sort(), 'the filled field is not reported').toEqual(
+          PARTIAL_BLANK_FIELDS,
+        );
       });
 
       await test.step('Check that only the empty fields are reported in the form', async () => {
-        await expectMessages(errorMessages.messages, [
-          "description can't be blank",
-          "body can't be blank",
-        ]);
+        await expectMessages(errorMessages.messages, PARTIAL_BLANK_FIELDS.map(blankMessage));
       });
     });
 
@@ -125,7 +113,7 @@ test.describe(
 
       const response = await submitAndCatchResponse(page, () => editorPage.submit());
 
-      const created = await test.step('Validate the response body from the server', async () => {
+      const created = await test.step('Validate the created article response body', async () => {
         expect(response.status(), 'POST /api/articles creates the article').toBe(201);
         const { article: stored } = await expectValid(
           ArticleResponseSchema,
@@ -133,6 +121,7 @@ test.describe(
           'article.json',
         );
         // Recorded before the comparisons below, so a failing one still leaves it to the cleanup.
+        // A 201 whose body fails the schema is not covered: the slug is unknown by then.
         createdArticles.push(stored.slug);
 
         expect(stored.title, 'the stand stored the title that was typed').toBe(article.title);
@@ -191,7 +180,7 @@ test.describe(
 
       await test.step('Check the errors shown in the form', async () => {
         expect(rejected.status(), 'POST /api/articles rejects an empty article').toBe(422);
-        await expectMessages(errorMessages.messages, ALL_FIELDS_BLANK);
+        await expectMessages(errorMessages.messages, ALL_BLANK_FIELDS.map(blankMessage));
       });
 
       await test.step('Fill the form: Title, Description, Body, Tags', async () => {
@@ -199,15 +188,21 @@ test.describe(
       });
 
       const response = await submitAndCatchResponse(page, () => editorPage.submit());
-      const { article: created } = await expectValid(
-        ArticleResponseSchema,
-        await response.json(),
-        'article.json',
-      );
-      createdArticles.push(created.slug);
+
+      const created = await test.step('Validate the created article response body', async () => {
+        expect(response.status(), 'the retried submit creates the article').toBe(201);
+        const { article: stored } = await expectValid(
+          ArticleResponseSchema,
+          await response.json(),
+          'article.json',
+        );
+        // Recorded before the checks below, so a failing one still leaves it to the cleanup.
+        // A 201 whose body fails the schema is not covered: the slug is unknown by then.
+        createdArticles.push(stored.slug);
+        return stored;
+      });
 
       await test.step('Check the redirect to the created article page and the data shown', async () => {
-        expect(response.status(), 'the retried submit creates the article').toBe(201);
         await expect(page).toHaveURL(`/article/${created.slug}`);
         await expect(articlePage.title).toHaveText(article.title);
       });

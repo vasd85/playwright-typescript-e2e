@@ -1,8 +1,9 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import type { Page, Response } from '@playwright/test';
+import type { Page } from '@playwright/test';
 import { apiUrl } from '../../../src/api/client';
 import { expectValid } from '../../../src/api/expect-valid';
+import { waitForApiResponse } from '../../../src/api/response';
 import { ArticleEnvelopeSchema, ArticleSchema } from '../../../src/api/schemas/article';
 import { env } from '../../../src/config/env';
 import { test, expect, NO_AUTH } from '../../../src/fixtures';
@@ -17,10 +18,8 @@ test.use({ storageState: NO_AUTH });
  */
 const CORRUPTED = readFileSync(path.join(__dirname, 'article.broken.json'), 'utf8');
 const corrupted = ArticleEnvelopeSchema.parse(JSON.parse(CORRUPTED)).article;
-const ARTICLE_URL = apiUrl(`articles/${corrupted.slug}`);
-
-const isArticleRequest = (response: Response): boolean =>
-  response.url() === ARTICLE_URL && response.request().method() === 'GET';
+const ARTICLE_PATH = `articles/${corrupted.slug}`;
+const ARTICLE_URL = apiUrl(ARTICLE_PATH);
 
 /**
  * The comments of the same slug are served too, and the page does not render without them:
@@ -67,20 +66,26 @@ test.describe(
         await expect(articlePage.title).toHaveText(corrupted.title);
       });
 
-      // This waits for the markdown renderer to have run and refused, which is what makes the
-      // checks below meaningful: an empty body would otherwise also describe a page that has
-      // simply not painted yet. The error itself is the one trace the corruption leaves, and
-      // no user ever sees it.
+      // Waiting for the renderer to have run and refused is what makes the checks below
+      // meaningful: an empty body also describes a page that has simply not painted yet.
       await test.step('Check that the only trace is a console error', async () => {
         await expect
           .poll(() => consoleErrors.join('\n'), { message: 'the console reports the corruption' })
+          // Verbatim wording of the markdown renderer on the stand: its upgrade reddens this
+          // test with no defect of the application behind it.
           .toContain('marked(): input parameter is undefined or null');
       });
 
       await test.step('Check that nothing on the page reveals the corruption', async () => {
         await expect(articlePage.authorLink(corrupted.author.username)).toBeVisible();
+        // Asserted before the negative check below: a text matcher that finds no element at all
+        // satisfies its own negation, so the absence of a stray null means nothing until the
+        // container is known to be on the page.
+        await expect(articlePage.content).toBeVisible();
         await expect(articlePage.body).toBeEmpty();
-        await expect(articlePage.nullText).toHaveCount(0);
+        await expect(articlePage.content, 'the article body shows no stray null').not.toContainText(
+          'null',
+        );
         expect(pageErrors, 'the corruption did not crash the page').toEqual([]);
       });
     });
@@ -110,8 +115,9 @@ test.describe(
         });
 
         const response = await test.step('Open the article page', async () => {
-          const served = page.waitForResponse(isArticleRequest);
-          await articlePage.goto(corrupted.slug);
+          const served = await waitForApiResponse(page, 'GET', ARTICLE_PATH, () =>
+            articlePage.goto(corrupted.slug),
+          );
           await expect(articlePage.title).toHaveText(corrupted.title);
           return served;
         });

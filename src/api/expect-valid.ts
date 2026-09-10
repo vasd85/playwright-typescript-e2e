@@ -3,7 +3,8 @@ import { attachJson, maskSecrets } from '../reporting/safe-attach';
 
 /**
  * Parses a value against its schema and returns it typed. On a mismatch it attaches the value
- * and the violations to the report, then throws with the wording zod itself produced.
+ * and the violations to the report, then throws with what the violation costs followed by the
+ * wording zod itself produced: the consequence is ours to state, the diagnosis is not.
  *
  * Outside a running test the value is still validated and the error still thrown; only the
  * attachments are skipped, because there is no report to put them in.
@@ -24,5 +25,9 @@ export async function expectValid<T>(
   // Awaited before the throw: an attachment that loses the race with the exception is lost.
   await attachJson(snapshot, value);
   await attachJson('violations.json', violations);
-  throw new Error(maskSecrets(`Contract violated: ${violations.join('; ')}`));
+  throw new Error(
+    maskSecrets(
+      `Contract violated: the response does not carry what the application relies on - ${violations.join('; ')}`,
+    ),
+  );
 }

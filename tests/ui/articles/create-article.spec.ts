@@ -11,7 +11,8 @@ const submitAndCatchResponse = (page: Page, submit: () => Promise<void>): Promis
   test.step('Intercept POST **/api/articles', () =>
     waitForApiResponse(page, 'POST', 'articles', submit));
 
-// Sorted, because both checks below compare against a sorted list.
+// Sorted because the two checks of the reported field names compare against them as they are;
+// expectMessages sorts a copy of its own and does not care.
 const ALL_BLANK_FIELDS = ['body', 'description', 'title'];
 const PARTIAL_BLANK_FIELDS = ['body', 'description'];
 
@@ -120,6 +121,7 @@ test.describe(
           'article.json',
         );
         // Recorded before the comparisons below, so a failing one still leaves it to the cleanup.
+        // A 201 whose body fails the schema is not covered: the slug is unknown by then.
         createdArticles.push(stored.slug);
 
         expect(stored.title, 'the stand stored the title that was typed').toBe(article.title);
@@ -195,6 +197,7 @@ test.describe(
           'article.json',
         );
         // Recorded before the checks below, so a failing one still leaves it to the cleanup.
+        // A 201 whose body fails the schema is not covered: the slug is unknown by then.
         createdArticles.push(stored.slug);
         return stored;
       });

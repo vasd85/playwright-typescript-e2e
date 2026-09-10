@@ -1,23 +1,20 @@
 import { errors, type Page, type Response } from '@playwright/test';
 import { apiUrl } from './client';
 
-// Measured 2026-09-10: the slowest of the waits in the suite took 1.4 s. Ten seconds is
-// generous for the shared stand and still leaves two thirds of the 30 s test budget, so the
-// message below is what a test reports instead of running out of time in silence.
+// Generous for the shared stand, and short enough that a test with two waits still has budget
+// left to report the message below instead of running out of time in silence.
 const RESPONSE_TIMEOUT_MS = 10_000;
 
 /**
- * Waits for the response to one API call the page makes while `act` runs. The action comes in
- * as a callback so that the wait is always registered before it, and a missed match names the
- * request: with a function predicate Playwright can only say that some response never came,
- * which reads as an outage of the stand rather than a test that stopped matching.
- *
- * The URL is compared in full rather than by substring: `/articles` also begins the paths of
- * the feed, the comments and the favourites.
+ * Waits for the response to one API call the page makes while `act` runs. The action is a
+ * callback so the wait cannot be registered after it, and a missed match names the request:
+ * Playwright alone can only say that some response never came, which reads as an outage.
+ * The URL is compared in full - `/articles` also begins the feed, the comments and the
+ * favourites.
  */
 export async function waitForApiResponse(
   page: Page,
-  method: string,
+  method: 'GET' | 'POST',
   path: string,
   act: () => Promise<void>,
 ): Promise<Response> {

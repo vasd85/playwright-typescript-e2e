@@ -78,6 +78,10 @@ test.describe(
 
       await test.step('Check that nothing on the page reveals the corruption', async () => {
         await expect(articlePage.authorLink(corrupted.author.username)).toBeVisible();
+        // Asserted before the negative check below: a text matcher that finds no element at all
+        // satisfies its own negation, so the absence of a stray null means nothing until the
+        // container is known to be on the page.
+        await expect(articlePage.content).toBeVisible();
         await expect(articlePage.body).toBeEmpty();
         await expect(articlePage.content, 'the article body shows no stray null').not.toContainText(
           'null',

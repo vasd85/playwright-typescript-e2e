@@ -13,9 +13,9 @@
     "test:failure-demo": "cross-env CONTRACT_FAILURE_DEMO=1 playwright test --project=chromium --no-deps --grep @failure-demo --retries 0",
     "prereport:allure": "node -e \"const fs = require('node:fs'), d = 'allure-report'; fs.mkdirSync(d, { recursive: true }); for (const e of fs.readdirSync(d)) fs.rmSync(d + '/' + e, { recursive: true, force: true });\"",
     "report:allure": "allure generate allure-results",
-    "lint": "eslint --max-warnings 0 src tests playwright.config.ts eslint.config.mjs allurerc.mjs && prettier --check src tests playwright.config.ts eslint.config.mjs allurerc.mjs package.json tsconfig.json",
+    "lint": "eslint --max-warnings 0 . && prettier --ignore-path .gitignore --ignore-path .git/info/exclude --check .",
     "typecheck": "tsc --noEmit",
-    "format": "prettier --write src tests playwright.config.ts eslint.config.mjs allurerc.mjs package.json tsconfig.json"
+    "format": "prettier --ignore-path .gitignore --ignore-path .git/info/exclude --write ."
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

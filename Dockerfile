@@ -11,7 +11,10 @@ RUN npm ci
 
 # Listed one by one instead of `COPY . .`: the image then cannot absorb whatever else happens to
 # sit next to the sources when the build context is a working copy rather than the committed tree.
-COPY playwright.config.ts tsconfig.json allurerc.mjs eslint.config.mjs ./
+# The two dotfiles come along so that `npm run lint` behaves in the container as it does on the
+# host: `.gitignore` is where both tools read their ignore list from, and without `.prettierrc`
+# the formatter falls back to its own defaults and rejects every source file.
+COPY playwright.config.ts tsconfig.json allurerc.mjs eslint.config.mjs .gitignore .prettierrc ./
 COPY src ./src
 COPY tests ./tests
 
